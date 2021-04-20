@@ -1,1 +1,1 @@
-# hazelcast-enterprise-operator
+# Hazelcast Enteprise Operator
