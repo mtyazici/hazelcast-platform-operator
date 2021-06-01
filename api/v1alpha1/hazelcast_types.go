@@ -4,22 +4,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Hazelcast. Edit hazelcast_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Number of Hazelcast members in the cluster.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default:=3
+	// +optional
+	ClusterSize int32 `json:"clusterSize"`
+	// Repository to pull the Hazelcast Platform image from.
+	// +kubebuilder:default:="docker.io/hazelcast/hazelcast-enterprise"
+	// +optional
+	Repository string `json:"repository"`
+	// Version of Hazelcast Platform.
+	// +kubebuilder:default:="5.0-SNAPSHOT"
+	// +optional
+	Version string `json:"version"`
 }
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true

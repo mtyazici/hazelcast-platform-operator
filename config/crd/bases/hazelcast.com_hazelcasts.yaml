@@ -36,9 +36,19 @@ spec:
           spec:
             description: HazelcastSpec defines the desired state of Hazelcast
             properties:
-              foo:
-                description: Foo is an example field of Hazelcast. Edit hazelcast_types.go
-                  to remove/update
+              clusterSize:
+                default: 3
+                description: Number of Hazelcast members in the cluster.
+                format: int32
+                minimum: 1
+                type: integer
+              repository:
+                default: docker.io/hazelcast/hazelcast-enterprise
+                description: Repository to pull the Hazelcast Platform image from.
+                type: string
+              version:
+                default: 5.0-SNAPSHOT
+                description: Version of Hazelcast Platform.
                 type: string
             type: object
           status:
