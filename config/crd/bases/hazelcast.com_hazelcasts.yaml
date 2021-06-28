@@ -42,6 +42,11 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              licenseKeySecret:
+                default: hazelcast-license-key
+                description: Name of the secret with Hazelcast Enterprise License
+                  Key
+                type: string
               repository:
                 default: docker.io/hazelcast/hazelcast-enterprise
                 description: Repository to pull the Hazelcast Platform image from.
