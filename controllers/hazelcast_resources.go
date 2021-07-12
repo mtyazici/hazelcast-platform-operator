@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -208,8 +209,56 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
 								Value: h.Name,
 							},
+							{
+								Name:  "HZ_NETWORK_RESTAPI_ENABLED",
+								Value: "true",
+							},
+							{
+								Name:  "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED",
+								Value: "true",
+							},
+						},
+						LivenessProbe: &v1.Probe{
+							Handler: v1.Handler{
+								HTTPGet: &v1.HTTPGetAction{
+									Path:   "/hazelcast/health/node-state",
+									Port:   intstr.FromInt(5701),
+									Scheme: v1.URIScheme("HTTP"),
+								},
+							},
+							InitialDelaySeconds: 0,
+							TimeoutSeconds:      10,
+							PeriodSeconds:       10,
+							SuccessThreshold:    1,
+							FailureThreshold:    10,
+						},
+						ReadinessProbe: &v1.Probe{
+							Handler: v1.Handler{
+								HTTPGet: &v1.HTTPGetAction{
+									Path:   "/hazelcast/health/node-state",
+									Port:   intstr.FromInt(5701),
+									Scheme: v1.URIScheme("HTTP"),
+								},
+							},
+							InitialDelaySeconds: 0,
+							TimeoutSeconds:      10,
+							PeriodSeconds:       10,
+							SuccessThreshold:    1,
+							FailureThreshold:    10,
+						},
+						SecurityContext: &v1.SecurityContext{
+							RunAsNonRoot:             &[]bool{true}[0],
+							RunAsUser:                &[]int64{65534}[0],
+							Privileged:               &[]bool{false}[0],
+							ReadOnlyRootFilesystem:   &[]bool{true}[0],
+							AllowPrivilegeEscalation: &[]bool{false}[0],
+							Capabilities: &v1.Capabilities{
+								Drop: []v1.Capability{
+									v1.Capability("ALL")},
+							},
 						},
 					}},
+					TerminationGracePeriodSeconds: &[]int64{600}[0],
 				},
 			},
 		}
