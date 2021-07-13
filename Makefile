@@ -201,4 +201,4 @@ catalog-push: ## Push a catalog image.
 
 generate-bundle-yaml: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default >> bundle.yaml
+	$(KUSTOMIZE) build config/default > bundle.yaml
