@@ -199,6 +199,6 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-generate-bundle-yaml: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle.yaml
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > bundle.yaml
