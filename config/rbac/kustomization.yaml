@@ -7,6 +7,7 @@ resources:
 - service_account.yaml
 - role.yaml
 - role_binding.yaml
+<<<<<<< HEAD
 
 # Leader election is disabled by default
 # - leader_election_role.yaml
@@ -20,3 +21,5 @@ resources:
 # - auth_proxy_role.yaml
 # - auth_proxy_role_binding.yaml
 # - auth_proxy_client_clusterrole.yaml
+=======
+>>>>>>> de2495549520a74206674320e6e279dfed0c3374
