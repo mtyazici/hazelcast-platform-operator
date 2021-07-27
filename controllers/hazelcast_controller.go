@@ -87,7 +87,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
-	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
+	isReady, err := r.reconcileStatefulset(ctx, h, logger)
+	if err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
 			logger.V(1).Info("Statefulset resource version has been changed during create/update process.")
@@ -95,6 +96,9 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		} else {
 			return status.Update(r.Status(), h, status.FailedPhase(err))
 		}
+	}
+	if !isReady {
+		return status.Update(r.Status(), h, status.PendingPhase(10))
 	}
 	return status.Update(r.Status(), h, status.RunningPhase())
 }

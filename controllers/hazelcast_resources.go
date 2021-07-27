@@ -156,7 +156,9 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+// reconcileStatefulset deploys the StatefulSet of Hazelcast resource.
+// The returned boolean returns true if the StatefulSet is ready and false otherwise.
+func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) (bool, error) {
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
 	}
@@ -164,7 +166,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
 	if err != nil {
 		logger.Error(err, "Failed to set owner reference on Statefulset")
-		return err
+		return false, err
 	}
 
 	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
@@ -266,7 +268,14 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
-	return err
+	return isReady(sts, h.Spec.ClusterSize), err
+}
+
+func isReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
+	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
+	allReady := expectedReplicas == sts.Status.ReadyReplicas
+	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
+	return allUpdated && allReady && atExpectedGeneration
 }
 
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
