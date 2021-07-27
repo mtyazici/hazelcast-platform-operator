@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"context"
-
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-enterprise-operator/pkg/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -45,14 +45,14 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get Hazelcast")
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
 	err = r.addFinalizer(ctx, h, logger)
 	if err != nil {
 		logger.Error(err, "Failed to add finalizer into custom resource")
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	//Check if the Hazelcast CR is marked to be deleted
@@ -61,7 +61,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		err = r.executeFinalizer(ctx, h, logger)
 		if err != nil {
 			logger.Error(err, "Finalizer execution failed")
-			return ctrl.Result{}, err
+			return status.Update(r.Status(), h, status.FailedPhase(err))
 		}
 		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", finalizer)
 		return ctrl.Result{}, nil
@@ -69,22 +69,22 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = r.reconcileClusterRole(ctx, h, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	err = r.reconcileServiceAccount(ctx, h, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	err = r.reconcileRoleBinding(ctx, h, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	err = r.reconcileService(ctx, h, logger)
 	if err != nil {
-		return ctrl.Result{}, err
+		return status.Update(r.Status(), h, status.FailedPhase(err))
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
@@ -93,11 +93,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.V(1).Info("Statefulset resource version has been changed during create/update process.")
 			return ctrl.Result{}, nil
 		} else {
-			return ctrl.Result{}, err
+			return status.Update(r.Status(), h, status.FailedPhase(err))
 		}
 	}
-
-	return ctrl.Result{}, nil
+	return status.Update(r.Status(), h, status.RunningPhase())
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {

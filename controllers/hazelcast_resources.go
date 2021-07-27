@@ -223,7 +223,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -237,7 +237,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -253,8 +253,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ReadOnlyRootFilesystem:   &[]bool{true}[0],
 							AllowPrivilegeEscalation: &[]bool{false}[0],
 							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{
-									v1.Capability("ALL")},
+								Drop: []v1.Capability{"ALL"},
 							},
 						},
 					}},
