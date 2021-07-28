@@ -36,19 +36,19 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Operator Image
-        run: make docker-build IMG="hazelcast/hazelcast-enterprise-operator:5-preview-snapshot"
+        run: make docker-build IMG="alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot"
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Operator Image
-        run: make docker-push IMG="hazelcast/hazelcast-enterprise-operator:5-preview-snapshot"
+        run: make docker-push IMG="alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot"
 
       - name: Push Hazelcast-Enterprise-Operator image to RHEL scan registry
         run: |
           RHEL_IMAGE=${RHEL_REPOSITORY}:5-preview-snapshot
           docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
-          docker tag "hazelcast/hazelcast-enterprise-operator:5-preview-snapshot" ${RHEL_IMAGE}
+          docker tag "alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot" ${RHEL_IMAGE}
           docker push ${RHEL_IMAGE}
 
       - name: Publish the Hazelcast-Enterprise-Operator image
