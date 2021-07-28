@@ -1,4 +1,4 @@
-package status
+package controllers
 
 import (
 	"context"
@@ -8,34 +8,34 @@ import (
 	"time"
 )
 
-type OptionsBuilder struct {
+type optionsBuilder struct {
 	phase      hazelcastv1alpha1.Phase
 	retryAfter int
 	err        error
 }
 
-func FailedPhase(err error) OptionsBuilder {
-	return OptionsBuilder{
+func failedPhase(err error) optionsBuilder {
+	return optionsBuilder{
 		phase: hazelcastv1alpha1.Failed,
 		err:   err,
 	}
 }
 
-func PendingPhase(retryAfter int) OptionsBuilder {
-	return OptionsBuilder{
+func pendingPhase(retryAfter int) optionsBuilder {
+	return optionsBuilder{
 		phase:      hazelcastv1alpha1.Pending,
 		retryAfter: retryAfter,
 	}
 }
 
-func RunningPhase() OptionsBuilder {
-	return OptionsBuilder{
+func runningPhase() optionsBuilder {
+	return optionsBuilder{
 		phase: hazelcastv1alpha1.Running,
 	}
 }
 
-// Update takes the options provided by the given OptionsBuilder, applies them all and then updates the Hazelcast resource
-func Update(statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options OptionsBuilder) (ctrl.Result, error) {
+// update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
+func update(statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status = hazelcastv1alpha1.HazelcastStatus{Phase: options.phase}
 	if err := statusWriter.Update(context.TODO(), h); err != nil {
 		return ctrl.Result{}, err
