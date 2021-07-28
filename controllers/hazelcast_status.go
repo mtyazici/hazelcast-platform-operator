@@ -10,7 +10,7 @@ import (
 
 type optionsBuilder struct {
 	phase      hazelcastv1alpha1.Phase
-	retryAfter int
+	retryAfter time.Duration
 	err        error
 }
 
@@ -21,7 +21,7 @@ func failedPhase(err error) optionsBuilder {
 	}
 }
 
-func pendingPhase(retryAfter int) optionsBuilder {
+func pendingPhase(retryAfter time.Duration) optionsBuilder {
 	return optionsBuilder{
 		phase:      hazelcastv1alpha1.Pending,
 		retryAfter: retryAfter,
@@ -35,16 +35,16 @@ func runningPhase() optionsBuilder {
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
-func update(statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
+func update(ctx context.Context, statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status = hazelcastv1alpha1.HazelcastStatus{Phase: options.phase}
-	if err := statusWriter.Update(context.TODO(), h); err != nil {
+	if err := statusWriter.Update(ctx, h); err != nil {
 		return ctrl.Result{}, err
 	}
 	if options.phase == hazelcastv1alpha1.Failed {
 		return ctrl.Result{}, options.err
 	}
 	if options.phase == hazelcastv1alpha1.Pending {
-		return ctrl.Result{Requeue: true, RequeueAfter: time.Second * time.Duration(options.retryAfter)}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: options.retryAfter}, nil
 	}
 	return ctrl.Result{}, nil
 }

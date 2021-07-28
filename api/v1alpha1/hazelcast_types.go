@@ -4,11 +4,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Phase represent the current state of the cluster
 type Phase string
 
 const (
+	// Running phase is the state when all the members of the cluster are successfully started
 	Running Phase = "Running"
-	Failed  Phase = "Failed"
+	// Failed phase is the state of error during the cluster startup
+	Failed Phase = "Failed"
+	// Pending phase is the state of starting the cluster when not all the members are started yet
 	Pending Phase = "Pending"
 )
 
