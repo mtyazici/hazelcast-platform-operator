@@ -36,7 +36,6 @@ func RunningPhase() OptionsBuilder {
 
 // Update takes the options provided by the given OptionsBuilder, applies them all and then updates the Hazelcast resource
 func Update(statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options OptionsBuilder) (ctrl.Result, error) {
-
 	h.Status = hazelcastv1alpha1.HazelcastStatus{Phase: options.phase}
 	if err := statusWriter.Update(context.TODO(), h); err != nil {
 		return ctrl.Result{}, err
