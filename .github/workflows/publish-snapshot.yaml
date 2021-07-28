@@ -56,5 +56,5 @@ jobs:
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
           VERSION="5-preview-snapshot"
           source .github/scripts/publish-rhel.sh
-          wait_for_container_build_or_scan 3
+          wait_for_container_build_or_scan 10
           publish_the_image
