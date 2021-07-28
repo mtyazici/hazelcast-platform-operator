@@ -10,6 +10,13 @@ jobs:
   build:
     name: Publish Snapshot to Docker Hub
     runs-on: ubuntu-latest
+    env:
+      SCAN_REGISTRY: "scan.connect.redhat.com"
+      RHEL_REPO_PASSWORD: ${{ secrets.RHEL_REPO_PASSWORD }}
+      RHEL_BUNDLE_PASSWORD: ${{ secrets.RHEL_BUNDLE_PASSWORD }}
+      RHEL_REPOSITORY: ${{ secrets.RHEL_REPOSITORY }}
+      RHEL_BUNDLE_REPOSITORY: ${{ secrets.RHEL_BUNDLE_REPOSITORY }}
+      RHEL_API_KEY:  ${{ secrets.RHEL_API_KEY }}
 
     steps:
       - name: Checkout
@@ -37,3 +44,17 @@ jobs:
       - name: Push Operator Image
         run: make docker-push IMG="hazelcast/hazelcast-enterprise-operator:5-preview-snapshot"
 
+      - name: Push Hazelcast-Enterprise-Operator image to RHEL scan registry
+        run: |
+          RHEL_IMAGE=${RHEL_REPOSITORY}:5-preview-snapshot
+          docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
+          docker tag "hazelcast/hazelcast-enterprise-operator:5-preview-snapshot" ${RHEL_IMAGE}
+          docker push ${RHEL_IMAGE}
+
+      - name: Publish the Hazelcast-Enterprise-Operator image
+        run: |
+          PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
+          VERSION="5-preview-snapshot"
+          source .github/scripts/publish-rhel.sh
+          wait_for_container_build_or_scan 3
+          publish_the_image
