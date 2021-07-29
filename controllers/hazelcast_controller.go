@@ -90,7 +90,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}
 
-	sts, err := r.reconcileStatefulset(ctx, h, logger)
+	err = r.reconcileStatefulset(ctx, h, logger)
 	if err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
@@ -100,7 +100,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return update(ctx, r.Status(), h, failedPhase(err))
 		}
 	}
-	if !isStatefulSetReady(sts, h.Spec.ClusterSize) {
+	if !r.checkIfRunning(ctx, h) {
 		return update(ctx, r.Status(), h, pendingPhase(retryAfter))
 	}
 	return update(ctx, r.Status(), h, runningPhase())
