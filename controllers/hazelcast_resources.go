@@ -156,6 +156,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	return err
 }
 
+// reconcileStatefulset deploys the StatefulSet of Hazelcast resource.
+// The returned boolean returns true if the StatefulSet is ready and false otherwise.
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
@@ -223,7 +225,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -237,7 +239,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(5701),
-									Scheme: v1.URIScheme("HTTP"),
+									Scheme: "HTTP",
 								},
 							},
 							InitialDelaySeconds: 0,
@@ -253,8 +255,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							ReadOnlyRootFilesystem:   &[]bool{true}[0],
 							AllowPrivilegeEscalation: &[]bool{false}[0],
 							Capabilities: &v1.Capabilities{
-								Drop: []v1.Capability{
-									v1.Capability("ALL")},
+								Drop: []v1.Capability{"ALL"},
 							},
 						},
 					}},
@@ -268,6 +269,22 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func (r *HazelcastReconciler) checkIfRunning(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
+	sts := &appsv1.StatefulSet{}
+	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
+	if err != nil {
+		return false
+	}
+	return isStatefulSetReady(sts, h.Spec.ClusterSize)
+}
+
+func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
+	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
+	allReady := expectedReplicas == sts.Status.ReadyReplicas
+	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
+	return allUpdated && allReady && atExpectedGeneration
 }
 
 func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
