@@ -4,7 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Phase represent the current state of the cluster
+// Phase represents the current state of the cluster
 type Phase string
 
 const (
