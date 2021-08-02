@@ -55,7 +55,7 @@ jobs:
       - name: Publish the Hazelcast-Enterprise-Operator image
         run: |
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
-          source ./operator-repo/.github/scripts/publish-rhel.sh
+          source .github/scripts/publish-rhel.sh
           publish_the_image "$PROJECT_ID" "$VERSION" "$RHEL_API_KEY"
 
           # We need to wait for operator image publish to be able to push operator bundle image
