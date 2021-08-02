@@ -17,6 +17,7 @@ jobs:
       RHEL_REPOSITORY: ${{ secrets.RHEL_REPOSITORY }}
       RHEL_BUNDLE_REPOSITORY: ${{ secrets.RHEL_BUNDLE_REPOSITORY }}
       RHEL_API_KEY:  ${{ secrets.RHEL_API_KEY }}
+      VERSION: "5-preview-snapshot"
 
     steps:
       - name: Checkout
@@ -36,25 +37,26 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Operator Image
-        run: make docker-build IMG="alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot"
+        run: make docker-build IMG="alparslanavci/hazelcast-enterprise-operator:$VERSION"
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Operator Image
-        run: make docker-push IMG="alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot"
+        run: make docker-push IMG="alparslanavci/hazelcast-enterprise-operator:$VERSION"
 
       - name: Push Hazelcast-Enterprise-Operator image to RHEL scan registry
         run: |
-          RHEL_IMAGE=${RHEL_REPOSITORY}:5-preview-snapshot
+          RHEL_IMAGE=${RHEL_REPOSITORY}:${VERSION}
           docker login ${SCAN_REGISTRY} -u unused -p ${RHEL_REPO_PASSWORD}
-          docker tag "alparslanavci/hazelcast-enterprise-operator:5-preview-snapshot" ${RHEL_IMAGE}
+          docker tag "alparslanavci/hazelcast-enterprise-operator:$VERSION" ${RHEL_IMAGE}
           docker push ${RHEL_IMAGE}
 
       - name: Publish the Hazelcast-Enterprise-Operator image
         run: |
           PROJECT_ID=$( echo ${RHEL_REPOSITORY} | grep -m 1 -Po "/\K.+(?=/)" )
-          VERSION="5-preview-snapshot"
-          source .github/scripts/publish-rhel.sh
-          wait_for_container_build_or_scan 10
-          publish_the_image
+          source ./operator-repo/.github/scripts/publish-rhel.sh
+          publish_the_image "$PROJECT_ID" "$VERSION" "$RHEL_API_KEY"
+
+          # We need to wait for operator image publish to be able to push operator bundle image
+          wait_for_container_publish "$PROJECT_ID" $VERSION "$RHEL_API_KEY" "$TIMEOUT_IN_MINS"
