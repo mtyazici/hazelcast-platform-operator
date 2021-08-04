@@ -27,6 +27,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
       - name: Build Operator Image
         run: make docker-build IMG="hazelcast/hazelcast-enterprise-operator:5-preview-snapshot"
 
