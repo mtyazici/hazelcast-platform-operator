@@ -36,3 +36,4 @@ jobs:
 
       - name: Push Operator Image
         run: make docker-push IMG="hazelcast/hazelcast-enterprise-operator:5-preview-snapshot"
+
