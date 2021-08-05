@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Full Lifecycle
-  name: hazelcast-enterprise-operator.v0.0.0
+  name: hazelcast-enterprise-operator
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
