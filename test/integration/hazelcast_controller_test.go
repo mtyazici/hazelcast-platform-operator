@@ -148,3 +148,56 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 })
+
+var _ = Describe("Hazelcast cluster status", func() {
+	const (
+		hzKeyName   = "hazelcast-status-test"
+		clusterSize = 1
+		timeout     = time.Minute * 10
+		interval    = time.Second * 10
+	)
+
+	Context("Hazelcast CustomResource", func() {
+		It("Should be running", func() {
+			lookupKey := types.NamespacedName{
+				Name:      hzKeyName,
+				Namespace: "default",
+			}
+
+			toCreate := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      clusterSize,
+					Repository:       "alpine",
+					Version:          "3.14.0",
+					LicenseKeySecret: "hazelcast-license-key",
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), toCreate)).Should(Succeed())
+
+			EventuallyWithOffset(1, func() bool {
+				sts := &v1.StatefulSet{}
+				err := k8sClient.Get(context.Background(), lookupKey, sts)
+				if err != nil {
+					return false
+				}
+				if sts.Status.ReadyReplicas != clusterSize {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+})
