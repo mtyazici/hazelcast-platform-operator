@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -18,8 +19,12 @@ import (
 )
 
 const (
-	finalizer      = "hazelcast.com/finalizer"
-	licenseDataKey = "license-key"
+	finalizer                    = "hazelcast.com/finalizer"
+	licenseDataKey               = "license-key"
+	servicePerPodLabelName       = "hazelcast.com/service-per-pod"
+	servicePerPodLabelValue      = "true"
+	servicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
+	exposeExternallyAnnotation   = "hazelcast.com/expose-externally-member-access"
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -40,6 +45,10 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		logger.Error(err, "ClusterRole could not be removed")
 		return err
 	}
+	if err := r.removeClusterRoleBinding(ctx, h, logger); err != nil {
+		logger.Error(err, "ClusterRoleBinding could not be removed")
+		return err
+	}
 	controllerutil.RemoveFinalizer(h, finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
@@ -49,13 +58,50 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	return nil
 }
 
+func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	clusterRole := &rbacv1.ClusterRole{}
+	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, clusterRole)
+	if err != nil && errors.IsNotFound(err) {
+		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
+		return nil
+	}
+
+	err = r.Delete(ctx, clusterRole)
+	if err != nil {
+		logger.Error(err, "Failed to clean up ClusterRole")
+		return err
+	}
+	logger.V(1).Info("ClusterRole removed successfully")
+	return nil
+}
+
+func (r *HazelcastReconciler) removeClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	crb := &rbacv1.ClusterRoleBinding{}
+	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, crb)
+	if err != nil && errors.IsNotFound(err) {
+		logger.V(1).Info("ClusterRoleBinding is not created yet. Or it is already removed.")
+		return nil
+	}
+
+	err = r.Delete(ctx, crb)
+	if err != nil {
+		logger.Error(err, "Failed to clean up ClusterRoleBinding")
+		return err
+	}
+	logger.V(1).Info("ClusterRoleBinding removed successfully")
+	return nil
+}
+
 func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 
 	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: objectMetadataForHazelcast(h),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   h.Name,
+			Labels: labels(h),
+		},
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, clusterRole, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -73,7 +119,7 @@ func (r *HazelcastReconciler) reconcileClusterRole(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
+		ObjectMeta: metadata(h),
 	}
 
 	err := controllerutil.SetControllerReference(h, serviceAccount, r.Scheme)
@@ -82,7 +128,7 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+	opResult, err := createOrUpdate(ctx, r.Client, serviceAccount, func() error {
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -91,25 +137,23 @@ func (r *HazelcastReconciler) reconcileServiceAccount(ctx context.Context, h *ha
 	return err
 }
 
-func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
+func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   h.Name,
+			Labels: labels(h),
+		},
 	}
 
-	err := controllerutil.SetControllerReference(h, roleBinding, r.Scheme)
-	if err != nil {
-		return err
-	}
-
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, roleBinding, func() error {
-		roleBinding.Subjects = []rbacv1.Subject{
+	opResult, err := createOrUpdate(ctx, r.Client, crb, func() error {
+		crb.Subjects = []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      h.Name,
 				Namespace: h.Namespace,
 			},
 		}
-		roleBinding.RoleRef = rbacv1.RoleRef{
+		crb.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     h.Name,
@@ -125,7 +169,11 @@ func (r *HazelcastReconciler) reconcileRoleBinding(ctx context.Context, h *hazel
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	service := &corev1.Service{
-		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
+		ObjectMeta: metadata(h),
+		Spec: corev1.ServiceSpec{
+			Selector: labels(h),
+			Ports:    ports(),
+		},
 	}
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
@@ -134,20 +182,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		return err
 	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
-		service.Spec = corev1.ServiceSpec{
-			Type:      v1.ServiceTypeClusterIP,
-			ClusterIP: corev1.ClusterIPNone,
-			Selector:  labelsForHazelcast(h),
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "hazelcast-port",
-					Protocol:   corev1.ProtocolTCP,
-					Port:       5701,
-					TargetPort: intstr.FromString("hazelcast"),
-				},
-			},
-		}
+	opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec.Type = serviceType(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
@@ -156,24 +192,146 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 	return err
 }
 
-// reconcileStatefulset deploys the StatefulSet of Hazelcast resource.
-// The returned boolean returns true if the StatefulSet is ready and false otherwise.
-func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: objectNamespacedMetadataForHazelcast(h),
+func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
+	if h.Spec.ExposeExternally.IsEnabled() {
+		return h.Spec.ExposeExternally.DiscoveryK8ServiceType()
+	}
+	return corev1.ServiceTypeClusterIP
+}
+
+func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.ExposeExternally.IsSmart() {
+		// Service per pod applies only to Smart type
+		return nil
 	}
 
-	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
+	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      servicePerPodName(i, h),
+				Namespace: h.Namespace,
+				Labels:    servicePerPodLabels(h),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector:                 servicePerPodSelector(i, h),
+				Ports:                    ports(),
+				PublishNotReadyAddresses: true,
+			},
+		}
+
+		err := controllerutil.SetControllerReference(h, service, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		opResult, err := createOrUpdate(ctx, r.Client, service, func() error {
+			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
+			return nil
+		})
+
+		if opResult != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "Service", servicePerPodName(i, h), "result", opResult)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	var n int
+	if h.Spec.ExposeExternally.IsSmart() {
+		n = int(h.Spec.ClusterSize)
+	}
+
+	// Delete unused services (when the cluster was scaled down)
+	// The current number of service per pod is always stored in the StatefulSet annotations
+	sts := &appsv1.StatefulSet{}
+	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
 	if err != nil {
-		logger.Error(err, "Failed to set owner reference on Statefulset")
+		if errors.IsNotFound(err) {
+			// Not found, StatefulSet is not created yet, no need to delete any services
+			return nil
+		}
 		return err
 	}
+	p, err := strconv.Atoi(sts.ObjectMeta.Annotations[servicePerPodCountAnnotation])
+	if err != nil {
+		// Annotation not found, no need to delete any services
+		return nil
+	}
 
-	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
-		replicas := h.Spec.ClusterSize
-		ls := labelsForHazelcast(h)
-		sts.Spec = appsv1.StatefulSetSpec{
-			Replicas: &replicas,
+	for i := n; i < p; i++ {
+		s := &v1.Service{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+		err = r.Client.Delete(ctx, s)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Not found, no need to remove the service
+				continue
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
+	return fmt.Sprintf("%s-%d", h.Name, i)
+}
+
+func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ls := labels(h)
+	ls["statefulset.kubernetes.io/pod-name"] = servicePerPodName(i, h)
+	return ls
+}
+
+func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ls := labels(h)
+	ls[servicePerPodLabelName] = servicePerPodLabelValue
+	return ls
+}
+
+func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
+	if !h.Spec.ExposeExternally.IsSmart() {
+		// Service per pod applies only to Smart type
+		return true
+	}
+
+	// Check if each service per pod is ready
+	for i := 0; i < int(h.Spec.ClusterSize); i++ {
+		s := &v1.Service{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
+		if err != nil {
+			// Service is not created yet
+			return false
+		}
+		if s.Spec.Type == v1.ServiceTypeLoadBalancer {
+			if len(s.Status.LoadBalancer.Ingress) == 0 {
+				// LoadBalancer service waiting for External IP to get assigned
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	ls := labels(h)
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metadata(h),
+		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
@@ -185,41 +343,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
 					Containers: []v1.Container{{
-						Image: imageForCluster(h),
-						Name:  "hazelcast",
+						Name: "hazelcast",
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 5701,
 							Name:          "hazelcast",
+							Protocol:      v1.ProtocolTCP,
 						}},
-						Env: []v1.EnvVar{
-							{
-								Name: "HZ_LICENSEKEY",
-								ValueFrom: &v1.EnvVarSource{
-									SecretKeyRef: &v1.SecretKeySelector{
-										LocalObjectReference: v1.LocalObjectReference{
-											Name: h.Spec.LicenseKeySecret,
-										},
-										Key: licenseDataKey,
-									},
-								},
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_ENABLED",
-								Value: "true",
-							},
-							{
-								Name:  "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME",
-								Value: h.Name,
-							},
-							{
-								Name:  "HZ_NETWORK_RESTAPI_ENABLED",
-								Value: "true",
-							},
-							{
-								Name:  "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED",
-								Value: "true",
-							},
-						},
 						LivenessProbe: &v1.Probe{
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
@@ -262,13 +391,61 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
 				},
 			},
-		}
+		},
+	}
+
+	err := controllerutil.SetControllerReference(h, sts, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on Statefulset")
+		return err
+	}
+
+	opResult, err := createOrUpdate(ctx, r.Client, sts, func() error {
+		sts.Spec.Replicas = &h.Spec.ClusterSize
+		sts.ObjectMeta.Annotations = statefulSetAnnotations(h)
+		sts.Spec.Template.Annotations = podAnnotations(h)
+		sts.Spec.Template.Spec.Containers[0].Image = dockerImage(h)
+		sts.Spec.Template.Spec.Containers[0].Env = env(h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {
 		logger.Info("Operation result", "Statefulset", h.Name, "result", opResult)
 	}
 	return err
+}
+
+func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
+	envs := []v1.EnvVar{
+		{
+			Name: "HZ_LICENSEKEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Spec.LicenseKeySecret,
+					},
+					Key: licenseDataKey,
+				},
+			},
+		},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME", Value: h.Name},
+		{Name: "HZ_NETWORK_RESTAPI_ENABLED", Value: "true"},
+		{Name: "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED", Value: "true"},
+	}
+
+	if h.Spec.ExposeExternally.UsesNodeName() {
+		envs = append(envs, v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS", Value: "true"})
+	}
+
+	if h.Spec.ExposeExternally.IsSmart() {
+		envs = append(envs,
+			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME", Value: servicePerPodLabelName},
+			v1.EnvVar{Name: "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE", Value: servicePerPodLabelValue},
+		)
+	}
+
+	return envs
 }
 
 func (r *HazelcastReconciler) checkIfRunning(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
@@ -287,24 +464,18 @@ func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
 	return allUpdated && allReady && atExpectedGeneration
 }
 
-func (r *HazelcastReconciler) removeClusterRole(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	clusterRole := &rbacv1.ClusterRole{}
-	err := r.Get(ctx, client.ObjectKey{Name: h.Name}, clusterRole)
-	if err != nil && errors.IsNotFound(err) {
-		logger.V(1).Info("ClusterRole is not created yet. Or it is already removed.")
-		return nil
+func ports() []v1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Name:       "hazelcast-port",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       5701,
+			TargetPort: intstr.FromString("hazelcast"),
+		},
 	}
-
-	err = r.Delete(ctx, clusterRole)
-	if err != nil {
-		logger.Error(err, "Failed to clean up ClusterRole")
-		return err
-	}
-	logger.V(1).Info("ClusterRole removed successfully")
-	return nil
 }
 
-func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":       "hazelcast",
 		"app.kubernetes.io/instance":   h.Name,
@@ -312,21 +483,40 @@ func labelsForHazelcast(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	}
 }
 
-func objectNamespacedMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
+func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ans := map[string]string{}
+	if h.Spec.ExposeExternally.IsSmart() {
+		ans[servicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
+	}
+	return ans
+}
+
+func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	ans := map[string]string{}
+	if h.Spec.ExposeExternally.IsSmart() {
+		ans[exposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
+	}
+	return ans
+}
+
+func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      h.Name,
 		Namespace: h.Namespace,
-		Labels:    labelsForHazelcast(h),
+		Labels:    labels(h),
 	}
 }
 
-func objectMetadataForHazelcast(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:   h.Name,
-		Labels: labelsForHazelcast(h),
-	}
-}
-
-func imageForCluster(h *hazelcastv1alpha1.Hazelcast) string {
+func dockerImage(h *hazelcastv1alpha1.Hazelcast) string {
 	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
+}
+
+func createOrUpdate(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+	opResult, err := controllerutil.CreateOrUpdate(ctx, c, obj, f)
+	if errors.IsAlreadyExists(err) {
+		// Ignore "already exists" error.
+		// Inside createOrUpdate() there's is a race condition between Get() and Create(), so this error is expected from time to time.
+		return opResult, nil
+	}
+	return opResult, err
 }

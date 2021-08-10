@@ -31,11 +31,10 @@ type HazelcastReconciler struct {
 // ClusterRole inherited from Hazelcast ClusterRole
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;rolebindings;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings;roles,verbs=get;list;watch;create;update;patch;delete,namespace=system
 // ClusterRole related to Reconcile()
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
@@ -80,7 +79,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}
 
-	err = r.reconcileRoleBinding(ctx, h, logger)
+	err = r.reconcileClusterRoleBinding(ctx, h, logger)
 	if err != nil {
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}
@@ -90,8 +89,22 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Status(), h, failedPhase(err))
 	}
 
-	err = r.reconcileStatefulset(ctx, h, logger)
+	err = r.reconcileServicePerPod(ctx, h, logger)
 	if err != nil {
+		return update(ctx, r.Status(), h, failedPhase(err))
+	}
+
+	err = r.reconcileUnusedServicePerPod(ctx, h, logger)
+	if err != nil {
+		return update(ctx, r.Status(), h, failedPhase(err))
+	}
+
+	if !r.isServicePerPodReady(ctx, h, logger) {
+		logger.Info("Service per pod is not ready, waiting.")
+		return update(ctx, r.Status(), h, pendingPhase(retryAfter))
+	}
+
+	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
@@ -112,6 +125,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.RoleBinding{}).
+		Owns(&rbacv1.ClusterRoleBinding{}).
 		Complete(r)
 }
