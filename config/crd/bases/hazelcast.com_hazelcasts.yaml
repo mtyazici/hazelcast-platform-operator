@@ -94,10 +94,31 @@ spec:
           status:
             description: HazelcastStatus defines the observed state of Hazelcast
             properties:
+              hazelcastClusterStatus:
+                description: HazelcastClusterStatus defines the status of the Hazelcast
+                  cluster
+                properties:
+                  currentMembers:
+                    format: int32
+                    type: integer
+                  desiredMembers:
+                    format: int32
+                    type: integer
+                  state:
+                    description: HazelcastState represents the states of Hazelcast
+                      clusters which can be used to allow or restrict the designated
+                      cluster operations
+                    type: string
+                required:
+                - currentMembers
+                - desiredMembers
+                - state
+                type: object
               phase:
                 description: Phase represents the current state of the cluster
                 type: string
             required:
+            - hazelcastClusterStatus
             - phase
             type: object
         type: object

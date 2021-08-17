@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-go-client"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,9 +37,16 @@ func runningPhase() optionsBuilder {
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
-func update(ctx context.Context, statusWriter client.StatusWriter, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
+func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status = hazelcastv1alpha1.HazelcastStatus{Phase: options.phase}
-	if err := statusWriter.Update(ctx, h); err != nil {
+	config := hazelcast.Config{}
+	config.Cluster.Network.SetAddresses(h.Name + ":5701")
+	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	println(hzClient.Running())
+	if err := c.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
