@@ -79,11 +79,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&hazelcast.HazelcastReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Hazelcast"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = hazelcast.NewHazelcastReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
+		mgr.GetScheme(),
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
 	}

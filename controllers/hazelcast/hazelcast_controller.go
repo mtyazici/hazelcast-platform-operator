@@ -4,11 +4,14 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-go-client"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -20,8 +23,18 @@ const retryAfter = 10 * time.Second
 // HazelcastReconciler reconciles a Hazelcast object
 type HazelcastReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	hzClients map[types.NamespacedName]HazelcastClient
+}
+
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
+	return &HazelcastReconciler{
+		Client:    c,
+		Log:       log,
+		Scheme:    s,
+		hzClients: make(map[types.NamespacedName]HazelcastClient),
+	}
 }
 
 // Role related to CRs
@@ -115,7 +128,36 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if !r.checkIfRunning(ctx, h) {
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
+
+	if err = r.reconcileHazelcastStatus(ctx, req, h); err != nil {
+		logger.Error(err, "Error reconciling Hazelcast cluster status")
+	}
 	return update(ctx, r.Client, h, runningPhase())
+}
+
+func (r *HazelcastReconciler) reconcileHazelcastStatus(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) error {
+	if _, ok := r.hzClients[req.NamespacedName]; ok {
+		return nil
+	}
+	config := hazelcast.Config{}
+	config.AddMembershipListener(func(event cluster.MembershipStateChanged) {
+		println("Member added for config listener " + event.Member.String())
+	})
+	config.Cluster.Network.SetAddresses(h.Name + ":5701")
+	hzClient, err := NewHazelcast(ctx, config, r.Log, req.NamespacedName)
+	if err != nil {
+		return err
+	}
+	_, err = hzClient.Client.AddMembershipListener(getStatusUpdateListener(ctx, hzClient, r.Client))
+	if err != nil {
+		shutdownErr := hzClient.Shutdown(ctx)
+		if shutdownErr != nil {
+			r.Log.Error(shutdownErr, "Error shutting down Hazelcast client")
+		}
+		return err
+	}
+	r.hzClients[req.NamespacedName] = hzClient
+	return nil
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
