@@ -9,13 +9,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"time"
 )
 
 type HazelcastClient struct {
-	Client         *hazelcast.Client
-	NamespacedName types.NamespacedName
-	Log            logr.Logger
-	MemberMap      map[string]bool
+	Client              *hazelcast.Client
+	NamespacedName      types.NamespacedName
+	Log                 logr.Logger
+	MemberMap           map[string]bool
+	Ticker              *time.Ticker
+	memberEventsChannel chan event.GenericEvent
 }
 
 func (c HazelcastClient) Shutdown(ctx context.Context) error {
@@ -23,11 +26,12 @@ func (c HazelcastClient) Shutdown(ctx context.Context) error {
 	return err
 }
 
-func NewHazelcastClient(l logr.Logger, n types.NamespacedName) HazelcastClient {
+func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) HazelcastClient {
 	return HazelcastClient{
-		NamespacedName: n,
-		Log:            l,
-		MemberMap:      make(map[string]bool),
+		NamespacedName:      n,
+		Log:                 l,
+		MemberMap:           make(map[string]bool),
+		memberEventsChannel: channel,
 	}
 }
 
@@ -37,24 +41,40 @@ func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) err
 		return err
 	}
 	c.Client = hzClient
+	c.Ticker = time.NewTicker(5 * time.Second)
+	go func() {
+		for range c.Ticker.C {
+			c.triggerReconcile()
+			println("Triggering the reconcile from ticker gorutine")
+			// Logic for the TimedMemberStateCodec
+		}
+	}()
 	return nil
 }
 
-func getStatusUpdateListener(hzClient HazelcastClient, memberEventChannel chan event.GenericEvent) func(cluster.MembershipStateChanged) {
+func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
 		println("Entering the listener " + changed.Member.String())
 		if changed.State == cluster.MembershipStateAdded {
+			println("Attributes for member " + changed.Member.String())
+			for k, v := range changed.Member.Attributes {
+				println("Attributes of the member: " + k + "=" + v)
+			}
 			hzClient.MemberMap[changed.Member.String()] = true
 			println("memberEvent: Added " + changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
 			delete(hzClient.MemberMap, changed.Member.String())
 			println("memberEvent: Removed " + changed.Member.String())
 		}
-		memberEventChannel <- event.GenericEvent{
-			Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
-				Namespace: hzClient.NamespacedName.Namespace,
-				Name:      hzClient.NamespacedName.Name,
-			}}}
+		hzClient.triggerReconcile()
 		println("memberEvent sent to channel " + changed.Member.String())
 	}
+}
+
+func (hzClient HazelcastClient) triggerReconcile() {
+	hzClient.memberEventsChannel <- event.GenericEvent{
+		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
+			Namespace: hzClient.NamespacedName.Namespace,
+			Name:      hzClient.NamespacedName.Name,
+		}}}
 }

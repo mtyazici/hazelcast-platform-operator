@@ -134,8 +134,10 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if err = r.reconcileHazelcastStatus(ctx, req, h); err != nil {
+		// Just logging the error as the StatefulSet is ready and running and the error could be related to the client configuration
 		logger.Error(err, "Error reconciling Hazelcast cluster status")
 	}
+	println("........Reconcile........")
 	return update(ctx, r.Client, h, runningPhase())
 }
 
@@ -146,8 +148,8 @@ func (r *HazelcastReconciler) reconcileHazelcastStatus(ctx context.Context, req 
 	}
 	config := hazelcast.Config{}
 	config.Cluster.Network.SetAddresses(h.Name + ":5701")
-	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName)
-	config.AddMembershipListener(getStatusUpdateListener(newHzClient, r.memberEventsChannel))
+	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName, r.memberEventsChannel)
+	config.AddMembershipListener(getStatusUpdateListener(newHzClient))
 	err := newHzClient.start(ctx, config)
 	if err != nil {
 		return err

@@ -7,4 +7,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: sbishyr/hz-operator-test
-  newTag: 0.0.12
+  newTag: 0.0.14
