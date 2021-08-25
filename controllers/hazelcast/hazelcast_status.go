@@ -38,6 +38,7 @@ func runningPhase() optionsBuilder {
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
+	h.Status.Cluster.DesiredMembers = h.Spec.ClusterSize
 	if err := c.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
