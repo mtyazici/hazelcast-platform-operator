@@ -133,17 +133,23 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
-	if err = r.reconcileHazelcastStatus(ctx, req, h); err != nil {
+	if err = r.createHazelcastClient(ctx, req, h); err != nil {
 		// Just logging the error as the StatefulSet is ready and running and the error could be related to the client configuration
 		logger.Error(err, "Error reconciling Hazelcast cluster status")
 	}
 	println("........Reconcile........")
-	return update(ctx, r.Client, h, runningPhase())
+	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req))
 }
 
-func (r *HazelcastReconciler) reconcileHazelcastStatus(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
 	if hzClient, ok := r.hzClients[req.NamespacedName]; ok {
-		h.Status.Cluster.CurrentMembers = int32(len(hzClient.MemberMap))
+		return runningPhase().withReadyMembers(len(hzClient.MemberMap))
+	}
+	return runningPhase()
+}
+
+func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) error {
+	if _, ok := r.hzClients[req.NamespacedName]; ok {
 		return nil
 	}
 	config := hazelcast.Config{}

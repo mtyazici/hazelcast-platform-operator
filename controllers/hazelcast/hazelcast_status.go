@@ -6,13 +6,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
 	"time"
 )
 
 type optionsBuilder struct {
-	phase      hazelcastv1alpha1.Phase
-	retryAfter time.Duration
-	err        error
+	phase        hazelcastv1alpha1.Phase
+	retryAfter   time.Duration
+	err          error
+	readyMembers int
 }
 
 func failedPhase(err error) optionsBuilder {
@@ -35,10 +37,15 @@ func runningPhase() optionsBuilder {
 	}
 }
 
+func (o optionsBuilder) withReadyMembers(m int) optionsBuilder {
+	o.readyMembers = m
+	return o
+}
+
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.DesiredMembers = h.Spec.ClusterSize
+	h.Status.Cluster.ReadyMembers = strconv.Itoa(options.readyMembers) + "/" + strconv.Itoa(int(h.Spec.ClusterSize))
 	if err := c.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {

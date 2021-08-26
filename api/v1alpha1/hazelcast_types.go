@@ -154,9 +154,10 @@ type HazelcastStatus struct {
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
 type HazelcastClusterStatus struct {
-	CurrentMembers int32          `json:"currentMembers"`
-	DesiredMembers int32          `json:"desiredMembers"`
-	State          HazelcastState `json:"state"`
+	// ReadyMembers represents the number of members that are connected to cluster from the desired number of members
+	//in the format <ready>/<desired>
+	ReadyMembers string         `json:"readyMembers"`
+	State        HazelcastState `json:"state"`
 }
 
 //+kubebuilder:object:root=true
@@ -165,6 +166,7 @@ type HazelcastClusterStatus struct {
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
+// +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
