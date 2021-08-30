@@ -54,7 +54,54 @@ var _ = Describe("Hazelcast status", func() {
 					Namespace: hzClient.NamespacedName.Namespace,
 					Name:      hzClient.NamespacedName.Name,
 				}}}))
+		})
 
+		It("Should remove the existing member for the map", func() {
+			existingMember := cluster.MemberInfo{
+				Address: cluster.NewAddress("172.10.0.1", 5701),
+				UUID:    hzTypes.NewUUID(),
+			}
+			hzClient.MemberMap[existingMember.String()] = true
+
+			stateChanged := cluster.MembershipStateChanged{
+				Member: existingMember,
+				State:  cluster.MembershipStateRemoved,
+			}
+			go getStatusUpdateListener(hzClient)(stateChanged)
+
+			Eventually(func() bool {
+				return hzClient.MemberMap[stateChanged.Member.String()]
+			}, timeout, interval).Should(BeFalse())
+
+			Eventually(func() event.GenericEvent {
+				select {
+				case e := <-hzClient.memberEventsChannel:
+					return e
+				default:
+					return event.GenericEvent{}
+				}
+			}).Should(Equal(event.GenericEvent{
+				Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
+					Namespace: hzClient.NamespacedName.Namespace,
+					Name:      hzClient.NamespacedName.Name,
+				}}}))
+		})
+
+		It("Should send event to the channel when calling triggerReconcile", func() {
+			go hzClient.triggerReconcile()
+
+			Eventually(func() event.GenericEvent {
+				select {
+				case e := <-hzClient.memberEventsChannel:
+					return e
+				default:
+					return event.GenericEvent{}
+				}
+			}, timeout, interval).Should(Equal(event.GenericEvent{
+				Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
+					Namespace: hzClient.NamespacedName.Namespace,
+					Name:      hzClient.NamespacedName.Name,
+				}}}))
 		})
 	})
 })

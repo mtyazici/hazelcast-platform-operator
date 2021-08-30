@@ -54,20 +54,12 @@ func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) err
 
 func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
-		println("Entering the listener " + changed.Member.String())
 		if changed.State == cluster.MembershipStateAdded {
-			println("Attributes for member " + changed.Member.String())
-			for k, v := range changed.Member.Attributes {
-				println("Attributes of the member: " + k + "=" + v)
-			}
 			hzClient.MemberMap[changed.Member.String()] = true
-			println("memberEvent: Added " + changed.Member.String())
 		} else if changed.State == cluster.MembershipStateRemoved {
 			delete(hzClient.MemberMap, changed.Member.String())
-			println("memberEvent: Removed " + changed.Member.String())
 		}
 		hzClient.triggerReconcile()
-		println("memberEvent sent to channel " + changed.Member.String())
 	}
 }
 

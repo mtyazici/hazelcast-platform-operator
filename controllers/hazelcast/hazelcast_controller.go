@@ -137,7 +137,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Just logging the error as the StatefulSet is ready and running and the error could be related to the client configuration
 		logger.Error(err, "Error reconciling Hazelcast cluster status")
 	}
-	println("........Reconcile........")
 	return update(ctx, r.Client, h, r.runningPhaseWithMembers(req))
 }
 
