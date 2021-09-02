@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,7 +33,7 @@ type HazelcastSpec struct {
 	Repository string `json:"repository"`
 
 	// Version of Hazelcast Platform.
-	// +kubebuilder:default:="5.0-SNAPSHOT"
+	// +kubebuilder:default:="5.0-BETA-2-slim"
 	// +optional
 	Version string `json:"version"`
 
@@ -146,6 +148,10 @@ type Hazelcast struct {
 
 	Spec   HazelcastSpec   `json:"spec,omitempty"`
 	Status HazelcastStatus `json:"status,omitempty"`
+}
+
+func (h *Hazelcast) DockerImage() string {
+	return fmt.Sprintf("%s:%s", h.Spec.Repository, h.Spec.Version)
 }
 
 //+kubebuilder:object:root=true
