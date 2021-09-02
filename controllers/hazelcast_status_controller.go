@@ -41,14 +41,6 @@ func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) err
 		return err
 	}
 	c.Client = hzClient
-	c.Ticker = time.NewTicker(5 * time.Second)
-	go func() {
-		for range c.Ticker.C {
-			c.triggerReconcile()
-			println("Triggering the reconcile from ticker gorutine")
-			// Logic for the TimedMemberStateCodec
-		}
-	}()
 	return nil
 }
 
