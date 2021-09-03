@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"time"
 )
 
 type HazelcastClient struct {
@@ -17,7 +16,6 @@ type HazelcastClient struct {
 	NamespacedName      types.NamespacedName
 	Log                 logr.Logger
 	MemberMap           map[string]bool
-	Ticker              *time.Ticker
 	memberEventsChannel chan event.GenericEvent
 }
 
