@@ -1,4 +1,4 @@
-package controllers
+package hazelcast
 
 import (
 	"github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"

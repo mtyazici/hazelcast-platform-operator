@@ -10,9 +10,6 @@ import (
 // Phase represents the current state of the cluster
 type Phase string
 
-// HazelcastState represents the states of Hazelcast clusters which can be used to allow or restrict the designated cluster operations
-type HazelcastState string
-
 const (
 	// Running phase is the state when all the members of the cluster are successfully started
 	Running Phase = "Running"
@@ -20,18 +17,6 @@ const (
 	Failed Phase = "Failed"
 	// Pending phase is the state of starting the cluster when not all the members are started yet
 	Pending Phase = "Pending"
-	// Active is the default cluster state. Cluster continues to operate without restrictions
-	Active HazelcastState = "Active"
-	// Passive is the state in which the partition table is frozen and partition assignments are not performed.
-	// This state rejects ALL operations immediately EXCEPT the read-only operations
-	Passive HazelcastState = "Passive"
-	// NoMigration is the state when no data movement between Hazelcast members happens
-	NoMigration HazelcastState = "NoMigration"
-	// Frozen is the state in which the partition table is frozen and partition assignments are not performed.
-	// All other operations in the cluster, except migration, continue without restrictions
-	Frozen HazelcastState = "Frozen"
-	// InTransition shows that the state of the cluster is in transition
-	InTransition HazelcastState = "InTransition"
 )
 
 // HazelcastSpec defines the desired state of Hazelcast
@@ -156,8 +141,7 @@ type HazelcastStatus struct {
 type HazelcastClusterStatus struct {
 	// ReadyMembers represents the number of members that are connected to cluster from the desired number of members
 	//in the format <ready>/<desired>
-	ReadyMembers string         `json:"readyMembers"`
-	State        HazelcastState `json:"state"`
+	ReadyMembers string `json:"readyMembers"`
 }
 
 //+kubebuilder:object:root=true
