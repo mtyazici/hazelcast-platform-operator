@@ -107,14 +107,8 @@ spec:
                       are connected to cluster from the desired number of members
                       in the format <ready>/<desired>
                     type: string
-                  state:
-                    description: HazelcastState represents the states of Hazelcast
-                      clusters which can be used to allow or restrict the designated
-                      cluster operations
-                    type: string
                 required:
                 - readyMembers
-                - state
                 type: object
               phase:
                 description: Phase represents the current state of the cluster

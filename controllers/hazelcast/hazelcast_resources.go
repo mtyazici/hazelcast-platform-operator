@@ -169,13 +169,7 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	service := &corev1.Service{
-		ObjectMeta: metadata(h),
-		Spec: corev1.ServiceSpec{
-			Selector: labels(h),
-			Ports:    ports(),
-		},
-	}
+	service := hazelcastService(h)
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
@@ -207,18 +201,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 	}
 
 	for i := 0; i < int(h.Spec.ClusterSize); i++ {
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      servicePerPodName(i, h),
-				Namespace: h.Namespace,
-				Labels:    servicePerPodLabels(h),
-			},
-			Spec: corev1.ServiceSpec{
-				Selector:                 servicePerPodSelector(i, h),
-				Ports:                    ports(),
-				PublishNotReadyAddresses: true,
-			},
-		}
+		service := servicePerPod(i, h)
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
@@ -463,17 +446,6 @@ func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
 	allReady := expectedReplicas == sts.Status.ReadyReplicas
 	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
 	return allUpdated && allReady && atExpectedGeneration
-}
-
-func ports() []v1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       "hazelcast-port",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       5701,
-			TargetPort: intstr.FromString("hazelcast"),
-		},
-	}
 }
 
 func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-go-client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -151,8 +150,7 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 	if _, ok := r.hzClients[req.NamespacedName]; ok {
 		return nil
 	}
-	config := hazelcast.Config{}
-	config.Cluster.Network.SetAddresses(h.Name + ":5701")
+	config := buildConfig(h)
 	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName, r.memberEventsChannel)
 	config.AddMembershipListener(getStatusUpdateListener(newHzClient))
 	err := newHzClient.start(ctx, config)
