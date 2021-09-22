@@ -106,11 +106,12 @@ test-e2e: generate fmt vet ## Run end-to-end tests
 
 ##@ Build
 
+GO_BUILD_TAGS ?= ""
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run -tags $(GO_BUILD_TAGS)  ./main.go
 
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
@@ -217,3 +218,13 @@ catalog-push: ## Push a catalog image.
 generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle.yaml
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > bundle.yaml
+
+
+STS_NAME ?= hazelcast
+expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
+	while [ true ] ; do \
+		kubectl get sts $(STS_NAME) &> /dev/null && break ; \
+  		sleep 5 ; \
+    done;
+	kubectl wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
+	kubectl port-forward statefulset/$(STS_NAME) 8000:5701

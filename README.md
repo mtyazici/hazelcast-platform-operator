@@ -145,30 +145,24 @@ make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ## Running operator locally
 
 Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
-For these reason the pods needs to be exposed outside the cluster using `ExposeExternally` feature.
-The operator run must be set the `build constraint` tag `localrun` and provide the `DISCOVERY_SERVICE_URL` env variable set to the URL of the exposed service:
+For these reason the pods needs to be exposed outside the cluster.
+The operator run must be set the `build constraint` tag `localrun`:
 
 ```shell
-DISCOVERY_SERVICE_URL=10.244.0.19:5701 go build github.com/hazelcast/hazelcast-enterprise-operator  --tags=localrun
+go build -o bin/manager -tags lolcarun main.go
 ```
-
-### Run using Kind local k8s cluster
-
-For running operator locally and access the local `Kind` cluster you need to configure the `extraPortMappings` mapping for the cluster.
-For this use the following command to create the cluster:
+Or using `make` with `GO_BUILD_TAGS` var:
 ```shell
-kind create cluster --config=test/config.yaml
-```
-
-To run the operator you will need to use additional  `build constraint` tag `kind`:
-```shell
-DISCOVERY_SERVICE_URL=127.0.0.1:9000 go build github.com/hazelcast/hazelcast-enterprise-operator  --tags=localrun,kind
+make build GO_BUILD_TAGS=localrun
+make run GO_BUILD_TAGS=localrun
 ```
 
 ### Setting up build tags in GoLand
 
-To run the operator from `GoLand` execute the following steps:
+To run the operator from `GoLand` execute the following steps to add build tags:
 
 1. In GoLand Preferences navigate to `Go | Build tags & Vendoring`
-2. In the `Custom tags` field enter `localrun kind`
-3. Go to the `Run configuration` of the `Go build` select the `Use all custom build tags` checkbox 
+2. In the `Custom tags` field enter `localrun`
+3. Go to the `Run configuration` of the `Go build` select the `Use all custom build tags` checkbox
+
+Now you can run the `main.go` using `GoLand`.

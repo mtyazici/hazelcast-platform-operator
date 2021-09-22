@@ -6,9 +6,11 @@ import (
 	"github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
+	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"time"
 )
 
 type HazelcastClient struct {
@@ -34,8 +36,10 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 }
 
 func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) error {
+	config.Cluster.ConnectionStrategy.Timeout = hzTypes.Duration(10 * time.Second)
 	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	if err != nil {
+		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.")
 		return err
 	}
 	c.Client = hzClient

@@ -169,7 +169,13 @@ func (r *HazelcastReconciler) reconcileClusterRoleBinding(ctx context.Context, h
 }
 
 func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	service := hazelcastService(h)
+	service := &corev1.Service{
+		ObjectMeta: metadata(h),
+		Spec: corev1.ServiceSpec{
+			Selector: labels(h),
+			Ports:    ports(),
+		},
+	}
 
 	err := controllerutil.SetControllerReference(h, service, r.Scheme)
 	if err != nil {
@@ -201,7 +207,18 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 	}
 
 	for i := 0; i < int(h.Spec.ClusterSize); i++ {
-		service := servicePerPod(i, h)
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      servicePerPodName(i, h),
+				Namespace: h.Namespace,
+				Labels:    servicePerPodLabels(h),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector:                 servicePerPodSelector(i, h),
+				Ports:                    ports(),
+				PublishNotReadyAddresses: true,
+			},
+		}
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
@@ -284,6 +301,17 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labels(h)
 	ls[servicePerPodLabelName] = servicePerPodLabelValue
 	return ls
+}
+
+func ports() []v1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Name:       "hazelcast-port",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       5701,
+			TargetPort: intstr.FromString("hazelcast"),
+		},
+	}
 }
 
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
