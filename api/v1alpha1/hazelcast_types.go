@@ -140,7 +140,7 @@ type HazelcastStatus struct {
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
 type HazelcastClusterStatus struct {
 	// ReadyMembers represents the number of members that are connected to cluster from the desired number of members
-	//in the format <ready>/<desired>
+	// in the format <ready>/<desired>
 	ReadyMembers string `json:"readyMembers"`
 }
 
