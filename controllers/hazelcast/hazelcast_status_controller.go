@@ -35,15 +35,14 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	}
 }
 
-func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) error {
+func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	config.Cluster.ConnectionStrategy.Timeout = hzTypes.Duration(10 * time.Second)
 	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	if err != nil {
-		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.")
-		return err
+		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
+		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
 	}
 	c.Client = hzClient
-	return nil
 }
 
 func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipStateChanged) {
