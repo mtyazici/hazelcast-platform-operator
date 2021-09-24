@@ -106,7 +106,7 @@ test-e2e: generate fmt vet ## Run end-to-end tests
 
 ##@ Build
 
-GO_BUILD_TAGS ?= ""
+GO_BUILD_TAGS ?= "localrun"
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager -tags $(GO_BUILD_TAGS) main.go
 

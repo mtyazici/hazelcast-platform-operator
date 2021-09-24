@@ -14,11 +14,11 @@ import (
 )
 
 type HazelcastClient struct {
-	Client              *hazelcast.Client
-	NamespacedName      types.NamespacedName
-	Log                 logr.Logger
-	MemberMap           map[string]bool
-	memberEventsChannel chan event.GenericEvent
+	Client               *hazelcast.Client
+	NamespacedName       types.NamespacedName
+	Log                  logr.Logger
+	MemberMap            map[string]bool
+	triggerReconcileChan chan event.GenericEvent
 }
 
 func (c HazelcastClient) Shutdown(ctx context.Context) error {
@@ -28,10 +28,10 @@ func (c HazelcastClient) Shutdown(ctx context.Context) error {
 
 func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) HazelcastClient {
 	return HazelcastClient{
-		NamespacedName:      n,
-		Log:                 l,
-		MemberMap:           make(map[string]bool),
-		memberEventsChannel: channel,
+		NamespacedName:       n,
+		Log:                  l,
+		MemberMap:            make(map[string]bool),
+		triggerReconcileChan: channel,
 	}
 }
 
@@ -57,7 +57,7 @@ func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipSt
 }
 
 func (hzClient HazelcastClient) triggerReconcile() {
-	hzClient.memberEventsChannel <- event.GenericEvent{
+	hzClient.triggerReconcileChan <- event.GenericEvent{
 		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: hzClient.NamespacedName.Namespace,
 			Name:      hzClient.NamespacedName.Name,

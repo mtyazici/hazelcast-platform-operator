@@ -19,8 +19,8 @@ var _ = Describe("Hazelcast status", func() {
 	)
 
 	var hzClient = HazelcastClient{
-		MemberMap:           make(map[string]bool),
-		memberEventsChannel: make(chan event.GenericEvent),
+		MemberMap:            make(map[string]bool),
+		triggerReconcileChan: make(chan event.GenericEvent),
 		NamespacedName: types.NamespacedName{
 			Namespace: "default",
 			Name:      "hazelcast",
@@ -44,7 +44,7 @@ var _ = Describe("Hazelcast status", func() {
 
 			Eventually(func() event.GenericEvent {
 				select {
-				case e := <-hzClient.memberEventsChannel:
+				case e := <-hzClient.triggerReconcileChan:
 					return e
 				default:
 					return event.GenericEvent{}
@@ -75,29 +75,12 @@ var _ = Describe("Hazelcast status", func() {
 
 			Eventually(func() event.GenericEvent {
 				select {
-				case e := <-hzClient.memberEventsChannel:
+				case e := <-hzClient.triggerReconcileChan:
 					return e
 				default:
 					return event.GenericEvent{}
 				}
 			}).Should(Equal(event.GenericEvent{
-				Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
-					Namespace: hzClient.NamespacedName.Namespace,
-					Name:      hzClient.NamespacedName.Name,
-				}}}))
-		})
-
-		It("Should send event to the channel when calling triggerReconcile", func() {
-			go hzClient.triggerReconcile()
-
-			Eventually(func() event.GenericEvent {
-				select {
-				case e := <-hzClient.memberEventsChannel:
-					return e
-				default:
-					return event.GenericEvent{}
-				}
-			}, timeout, interval).Should(Equal(event.GenericEvent{
 				Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 					Namespace: hzClient.NamespacedName.Namespace,
 					Name:      hzClient.NamespacedName.Name,
