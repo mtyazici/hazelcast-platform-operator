@@ -24,19 +24,19 @@ const retryAfter = 10 * time.Second
 // HazelcastReconciler reconciles a Hazelcast object
 type HazelcastReconciler struct {
 	client.Client
-	Log                 logr.Logger
-	Scheme              *runtime.Scheme
-	hzClients           map[types.NamespacedName]HazelcastClient
-	memberEventsChannel chan event.GenericEvent
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	hzClients            map[types.NamespacedName]HazelcastClient
+	triggerReconcileChan chan event.GenericEvent
 }
 
 func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
 	return &HazelcastReconciler{
-		Client:              c,
-		Log:                 log,
-		Scheme:              s,
-		hzClients:           make(map[types.NamespacedName]HazelcastClient),
-		memberEventsChannel: make(chan event.GenericEvent),
+		Client:               c,
+		Log:                  log,
+		Scheme:               s,
+		hzClients:            make(map[types.NamespacedName]HazelcastClient),
+		triggerReconcileChan: make(chan event.GenericEvent),
 	}
 }
 
@@ -149,7 +149,7 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 		return
 	}
 	config := buildConfig(h)
-	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName, r.memberEventsChannel)
+	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
 	config.AddMembershipListener(getStatusUpdateListener(newHzClient))
 	newHzClient.start(ctx, config)
 	r.hzClients[req.NamespacedName] = newHzClient
@@ -163,6 +163,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
-		Watches(&source.Channel{Source: r.memberEventsChannel}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

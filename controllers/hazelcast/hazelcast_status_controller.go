@@ -21,11 +21,6 @@ type HazelcastClient struct {
 	triggerReconcileChan chan event.GenericEvent
 }
 
-func (c HazelcastClient) Shutdown(ctx context.Context) error {
-	err := c.Client.Shutdown(ctx)
-	return err
-}
-
 func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) HazelcastClient {
 	return HazelcastClient{
 		NamespacedName:       n,
