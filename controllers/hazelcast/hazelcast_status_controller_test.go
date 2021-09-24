@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast status", func() {
 				}}}))
 		})
 
-		It("Should remove the existing member for the map", func() {
+		It("Should remove the existing member from the map", func() {
 			existingMember := cluster.MemberInfo{
 				Address: cluster.NewAddress("172.10.0.1", 5701),
 				UUID:    hzTypes.NewUUID(),
