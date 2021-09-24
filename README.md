@@ -151,11 +151,13 @@ The operator run must be set the `build constraint` tag `localrun`:
 ```shell
 go build -o bin/manager -tags lolcarun main.go
 ```
-Or using `make` with `GO_BUILD_TAGS` var:
+Or using `make` that will include the tag by default:
 ```shell
-make build GO_BUILD_TAGS=localrun
-make run GO_BUILD_TAGS=localrun
+make build
+make run
 ```
+You can override the build tags in the `make` commands by setting `GO_BUILD_TAGS` env variable.
+
 
 ### Setting up build tags in GoLand
 
