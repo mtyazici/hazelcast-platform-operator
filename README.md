@@ -149,7 +149,7 @@ For these reason the pods needs to be exposed outside the cluster.
 The operator run must be set the `build constraint` tag `localrun`:
 
 ```shell
-go build -o bin/manager -tags lolcarun main.go
+go build -o bin/manager -tags localrun main.go
 ```
 Or using `make` that will include the tag by default:
 ```shell
