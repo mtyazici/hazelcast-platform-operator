@@ -221,7 +221,6 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > bundle.yaml
 
-
 STS_NAME ?= hazelcast
 expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
 	while [ true ] ; do \

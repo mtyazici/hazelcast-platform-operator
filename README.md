@@ -20,7 +20,7 @@ cd hazelcast-enterprise-operator
 make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
 ```
 
-Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
+> Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
 
 ### Step 3: Start Hazelcast Enterprise Cluster
 
@@ -146,7 +146,9 @@ make test-e2e NAMESPACE=<YOUR NAMESPACE>
 
 Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
 For these reason the pods needs to be exposed outside the cluster.
-The operator run must be set the `build constraint` tag `localrun`:
+Run `make expose-local` command that will expose Hazelcast member to `localhost:8000`.
+
+The operator run must be build with `build constraint` tag `localrun`:
 
 ```shell
 go build -o bin/manager -tags localrun main.go
@@ -158,6 +160,7 @@ make run
 ```
 You can override the build tags in the `make` commands by setting `GO_BUILD_TAGS` env variable.
 
+> Note: Before running operator you need to run `make install` command to install the CRDs.
 
 ### Setting up build tags in GoLand
 

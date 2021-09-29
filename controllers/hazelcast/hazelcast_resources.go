@@ -3,6 +3,7 @@ package hazelcast
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -55,6 +56,11 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err != nil {
 		logger.Error(err, "Failed to remove finalizer from custom resource")
 		return err
+	}
+	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	if _, ok := r.hzClients[key]; ok {
+		//defer c.Client.Shutdown(ctx)
+		delete(r.hzClients, key)
 	}
 	return nil
 }
