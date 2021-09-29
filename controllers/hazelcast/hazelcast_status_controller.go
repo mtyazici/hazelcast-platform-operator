@@ -30,7 +30,7 @@ func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan even
 	}
 }
 
-func (c HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
+func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	config.Cluster.ConnectionStrategy.Timeout = hzTypes.Duration(10 * time.Second)
 	hzClient, err := hazelcast.StartNewClientWithConfig(ctx, config)
 	if err != nil {

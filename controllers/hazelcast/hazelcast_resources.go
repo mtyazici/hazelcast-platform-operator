@@ -58,8 +58,8 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		return err
 	}
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
-	if _, ok := r.hzClients[key]; ok {
-		//defer c.Client.Shutdown(ctx)
+	if c, ok := r.hzClients[key]; ok {
+		defer c.Client.Shutdown(ctx)
 		delete(r.hzClients, key)
 	}
 	return nil
