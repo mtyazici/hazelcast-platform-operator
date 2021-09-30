@@ -171,31 +171,6 @@ var _ = Describe("Hazelcast", func() {
 	})
 })
 
-func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.ClientConfig()
-	if err != nil {
-		panic(err)
-	}
-	// creates the clientset
-	clientset := kubernetes.NewForConfigOrDie(config)
-	p, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
-	if err != nil {
-		panic(err)
-	}
-	if p.Status.Phase != corev1.PodFailed && p.Status.Phase != corev1.PodRunning {
-		panic("Unable to get pod logs for the pod in Phase " + p.Status.Phase)
-	}
-	podLogOptions := corev1.PodLogOptions{}
-	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOptions)
-	podLogs, err := req.Stream(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	return podLogs
-}
-
 func useExistingCluster() bool {
 	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
 }
@@ -241,4 +216,29 @@ func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
 	} else {
 		return false
 	}
+}
+
+func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
+	config, err := kubeConfig.ClientConfig()
+	if err != nil {
+		panic(err)
+	}
+	// creates the clientset
+	clientset := kubernetes.NewForConfigOrDie(config)
+	p, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+	if p.Status.Phase != corev1.PodFailed && p.Status.Phase != corev1.PodRunning {
+		panic("Unable to get pod logs for the pod in Phase " + p.Status.Phase)
+	}
+	podLogOptions := corev1.PodLogOptions{}
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOptions)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	return podLogs
 }
