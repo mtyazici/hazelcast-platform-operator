@@ -471,22 +471,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	return envs
 }
 
-func (r *HazelcastReconciler) checkIfRunning(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) bool {
-	sts := &appsv1.StatefulSet{}
-	err := r.Client.Get(ctx, client.ObjectKey{Name: h.Name, Namespace: h.Namespace}, sts)
-	if err != nil {
-		return false
-	}
-	return isStatefulSetReady(sts, h.Spec.ClusterSize)
-}
-
-func isStatefulSetReady(sts *appsv1.StatefulSet, expectedReplicas int32) bool {
-	allUpdated := expectedReplicas == sts.Status.UpdatedReplicas
-	allReady := expectedReplicas == sts.Status.ReadyReplicas
-	atExpectedGeneration := sts.Generation == sts.Status.ObservedGeneration
-	return allUpdated && allReady && atExpectedGeneration
-}
-
 func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":       "hazelcast",
