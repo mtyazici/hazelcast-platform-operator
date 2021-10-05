@@ -61,7 +61,6 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
 		r.hzClients.Delete(key)
-		//delete(r.hzClients, key)
 		// shutdown error is ignored and does not need to be handled
 		_ = c.(*HazelcastClient).Client.Shutdown(ctx)
 	}

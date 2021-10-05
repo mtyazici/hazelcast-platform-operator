@@ -34,10 +34,9 @@ type HazelcastReconciler struct {
 
 func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
 	return &HazelcastReconciler{
-		Client: c,
-		Log:    log,
-		Scheme: s,
-		//hzClients:            make(map[types.NamespacedName]HazelcastClient),
+		Client:               c,
+		Log:                  log,
+		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
 	}
 }
@@ -140,9 +139,6 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
-	//if hzClient, ok := r.hzClients[req.NamespacedName]; ok {
-	//	return runningPhase().withReadyMembers(len(hzClient.MemberMap))
-	//}
 	if v, ok := r.hzClients.Load(req.NamespacedName); ok {
 		hzClient := v.(*HazelcastClient)
 		return runningPhase().withReadyMembers(len(hzClient.MemberMap))
@@ -151,9 +147,6 @@ func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsB
 }
 
 func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
-	//if _, ok := r.hzClients[req.NamespacedName]; ok {
-	//	return
-	//}
 	if _, ok := r.hzClients.Load(req.NamespacedName); ok {
 		return
 	}
@@ -161,7 +154,6 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
 	config.AddMembershipListener(getStatusUpdateListener(c))
 	c.start(ctx, config)
-	//r.hzClients[req.NamespacedName] = c
 	r.hzClients.Store(req.NamespacedName, c)
 }
 
