@@ -20,7 +20,7 @@ cd hazelcast-enterprise-operator
 make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
 ```
 
-Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
+> Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
 
 ### Step 3: Start Hazelcast Enterprise Cluster
 
@@ -142,3 +142,32 @@ kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE>
 make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
+## Running operator locally
+
+Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
+For these reason the pods needs to be exposed outside the cluster.
+Run `make expose-local` command that will expose Hazelcast member to `localhost:8000`.
+
+The operator run must be build with `build constraint` tag `localrun`:
+
+```shell
+go build -o bin/manager -tags localrun main.go
+```
+Or using `make` that will include the tag by default:
+```shell
+make build
+make run
+```
+You can override the build tags in the `make` commands by setting `GO_BUILD_TAGS` env variable.
+
+> Note: Before running operator you need to run `make install` command to install the CRDs.
+
+### Setting up build tags in GoLand
+
+To run the operator from `GoLand` execute the following steps to add build tags:
+
+1. In GoLand Preferences navigate to `Go | Build tags & Vendoring`
+2. In the `Custom tags` field enter `localrun`
+3. Go to the `Run configuration` of the `Go build` select the `Use all custom build tags` checkbox
+
+Now you can run the `main.go` using `GoLand`.

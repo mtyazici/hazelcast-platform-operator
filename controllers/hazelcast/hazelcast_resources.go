@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
@@ -55,6 +57,12 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err != nil {
 		logger.Error(err, "Failed to remove finalizer from custom resource")
 		return err
+	}
+	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
+	if c, ok := r.hzClients.Load(key); ok {
+		r.hzClients.Delete(key)
+		// shutdown error is ignored and does not need to be handled
+		_ = c.(*HazelcastClient).Client.Shutdown(ctx)
 	}
 	return nil
 }
@@ -308,6 +316,17 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
+func ports() []v1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Name:       "hazelcast-port",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       5701,
+			TargetPort: intstr.FromString("hazelcast"),
+		},
+	}
+}
+
 func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, _ logr.Logger) bool {
 	if !h.Spec.ExposeExternally.IsSmart() {
 		// Service per pod applies only to Smart type
@@ -452,17 +471,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 
 	return envs
-}
-
-func ports() []v1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       "hazelcast-port",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       5701,
-			TargetPort: intstr.FromString("hazelcast"),
-		},
-	}
 }
 
 func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {

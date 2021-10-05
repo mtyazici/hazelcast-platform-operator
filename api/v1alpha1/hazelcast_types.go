@@ -133,7 +133,15 @@ func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.Service
 
 // HazelcastStatus defines the observed state of Hazelcast
 type HazelcastStatus struct {
-	Phase Phase `json:"phase"`
+	Phase   Phase                  `json:"phase"`
+	Cluster HazelcastClusterStatus `json:"hazelcastClusterStatus"`
+}
+
+// HazelcastClusterStatus defines the status of the Hazelcast cluster
+type HazelcastClusterStatus struct {
+	// ReadyMembers represents the number of members that are connected to cluster from the desired number of members
+	// in the format <ready>/<desired>
+	ReadyMembers string `json:"readyMembers"`
 }
 
 //+kubebuilder:object:root=true
@@ -142,6 +150,7 @@ type HazelcastStatus struct {
 // Hazelcast is the Schema for the hazelcasts API
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Current state of the Hazelcast deployment"
+// +kubebuilder:printcolumn:name="Members",type="string",JSONPath=".status.hazelcastClusterStatus.readyMembers",description="Current numbers of ready Hazelcast members"
 type Hazelcast struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

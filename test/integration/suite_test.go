@@ -64,11 +64,11 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&hazelcast.HazelcastReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Hazelcast"),
-	}).SetupWithManager(k8sManager)
+	err = hazelcast.NewHazelcastReconciler(
+		k8sManager.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
+		k8sManager.GetScheme(),
+	).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&managementcenter.ManagementCenterReconciler{
