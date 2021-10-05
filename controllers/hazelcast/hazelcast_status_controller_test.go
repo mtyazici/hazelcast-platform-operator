@@ -1,6 +1,8 @@
 package hazelcast
 
 import (
+	"time"
+
 	"github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
@@ -9,13 +11,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"time"
 )
 
 var _ = Describe("Hazelcast status", func() {
 	const (
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
+		timeout  = 10 * time.Second
+		interval = 250 * time.Millisecond
 	)
 
 	var hzClient = HazelcastClient{

@@ -151,10 +151,10 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 		return
 	}
 	config := buildConfig(h)
-	newHzClient := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
-	config.AddMembershipListener(getStatusUpdateListener(newHzClient))
-	newHzClient.start(ctx, config)
-	r.hzClients[req.NamespacedName] = newHzClient
+	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
+	config.AddMembershipListener(getStatusUpdateListener(c))
+	c.start(ctx, config)
+	r.hzClients[req.NamespacedName] = c
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
