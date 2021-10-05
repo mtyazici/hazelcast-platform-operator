@@ -45,12 +45,14 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 
 func getStatusUpdateListener(hzClient *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
-		hzClient.Lock()
-		defer hzClient.Unlock()
 		if changed.State == cluster.MembershipStateAdded {
+			hzClient.Lock()
 			hzClient.MemberMap[changed.Member.String()] = true
+			hzClient.Unlock()
 		} else if changed.State == cluster.MembershipStateRemoved {
+			hzClient.Lock()
 			delete(hzClient.MemberMap, changed.Member.String())
+			hzClient.Unlock()
 		}
 		hzClient.triggerReconcile()
 	}
