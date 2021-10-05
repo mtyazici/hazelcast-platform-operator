@@ -470,6 +470,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		)
 	}
 
+	if h.Spec.ClusterName != "" {
+		envs = append(envs, v1.EnvVar{Name: "HZ_CLUSTERNAME", Value: h.Spec.ClusterName})
+	}
+
 	return envs
 }
 
