@@ -9,9 +9,10 @@ import (
 	"github.com/hazelcast/hazelcast-go-client"
 )
 
-func buildConfig(_ *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
+func buildConfig(h *hazelcastv1alpha1.Hazelcast) hazelcast.Config {
 	config := hazelcast.Config{}
 	cc := &config.Cluster
+	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses("127.0.0.1:8000")
 	cc.Unisocket = true
 	return config
