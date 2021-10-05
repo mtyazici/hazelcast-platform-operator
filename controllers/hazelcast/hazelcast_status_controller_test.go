@@ -19,7 +19,7 @@ var _ = Describe("Hazelcast status", func() {
 		interval = 250 * time.Millisecond
 	)
 
-	var hzClient = HazelcastClient{
+	var hzClient = &HazelcastClient{
 		MemberMap:            make(map[string]bool),
 		triggerReconcileChan: make(chan event.GenericEvent),
 		NamespacedName: types.NamespacedName{

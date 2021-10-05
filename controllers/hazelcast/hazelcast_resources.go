@@ -3,8 +3,9 @@ package hazelcast
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"strconv"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -58,10 +59,11 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		return err
 	}
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
-	if c, ok := r.hzClients[key]; ok {
-		delete(r.hzClients, key)
+	if c, ok := r.hzClients.Load(key); ok {
+		r.hzClients.Delete(key)
+		//delete(r.hzClients, key)
 		// shutdown error is ignored and does not need to be handled
-		_ = c.Client.Shutdown(ctx)
+		_ = c.(*HazelcastClient).Client.Shutdown(ctx)
 	}
 	return nil
 }

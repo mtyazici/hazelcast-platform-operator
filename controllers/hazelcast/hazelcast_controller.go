@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -12,7 +13,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -28,16 +28,16 @@ type HazelcastReconciler struct {
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	hzClients            map[types.NamespacedName]HazelcastClient
+	hzClients            sync.Map
 	triggerReconcileChan chan event.GenericEvent
 }
 
 func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
 	return &HazelcastReconciler{
-		Client:               c,
-		Log:                  log,
-		Scheme:               s,
-		hzClients:            make(map[types.NamespacedName]HazelcastClient),
+		Client: c,
+		Log:    log,
+		Scheme: s,
+		//hzClients:            make(map[types.NamespacedName]HazelcastClient),
 		triggerReconcileChan: make(chan event.GenericEvent),
 	}
 }
@@ -140,21 +140,29 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *HazelcastReconciler) runningPhaseWithMembers(req ctrl.Request) optionsBuilder {
-	if hzClient, ok := r.hzClients[req.NamespacedName]; ok {
+	//if hzClient, ok := r.hzClients[req.NamespacedName]; ok {
+	//	return runningPhase().withReadyMembers(len(hzClient.MemberMap))
+	//}
+	if v, ok := r.hzClients.Load(req.NamespacedName); ok {
+		hzClient := v.(*HazelcastClient)
 		return runningPhase().withReadyMembers(len(hzClient.MemberMap))
 	}
 	return runningPhase()
 }
 
 func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctrl.Request, h *hazelcastv1alpha1.Hazelcast) {
-	if _, ok := r.hzClients[req.NamespacedName]; ok {
+	//if _, ok := r.hzClients[req.NamespacedName]; ok {
+	//	return
+	//}
+	if _, ok := r.hzClients.Load(req.NamespacedName); ok {
 		return
 	}
 	config := buildConfig(h)
 	c := NewHazelcastClient(r.Log, req.NamespacedName, r.triggerReconcileChan)
 	config.AddMembershipListener(getStatusUpdateListener(c))
 	c.start(ctx, config)
-	r.hzClients[req.NamespacedName] = c
+	//r.hzClients[req.NamespacedName] = c
+	r.hzClients.Store(req.NamespacedName, c)
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {

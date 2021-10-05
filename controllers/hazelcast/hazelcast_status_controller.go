@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -15,6 +16,7 @@ import (
 )
 
 type HazelcastClient struct {
+	sync.Mutex
 	Client               *hazelcast.Client
 	NamespacedName       types.NamespacedName
 	Log                  logr.Logger
@@ -22,8 +24,8 @@ type HazelcastClient struct {
 	triggerReconcileChan chan event.GenericEvent
 }
 
-func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) HazelcastClient {
-	return HazelcastClient{
+func NewHazelcastClient(l logr.Logger, n types.NamespacedName, channel chan event.GenericEvent) *HazelcastClient {
+	return &HazelcastClient{
 		NamespacedName:       n,
 		Log:                  l,
 		MemberMap:            make(map[string]bool),
@@ -41,8 +43,10 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	c.Client = hzClient
 }
 
-func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipStateChanged) {
+func getStatusUpdateListener(hzClient *HazelcastClient) func(cluster.MembershipStateChanged) {
 	return func(changed cluster.MembershipStateChanged) {
+		hzClient.Lock()
+		defer hzClient.Unlock()
 		if changed.State == cluster.MembershipStateAdded {
 			hzClient.MemberMap[changed.Member.String()] = true
 		} else if changed.State == cluster.MembershipStateRemoved {
@@ -52,7 +56,7 @@ func getStatusUpdateListener(hzClient HazelcastClient) func(cluster.MembershipSt
 	}
 }
 
-func (hzClient HazelcastClient) triggerReconcile() {
+func (hzClient *HazelcastClient) triggerReconcile() {
 	hzClient.triggerReconcileChan <- event.GenericEvent{
 		Object: &v1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{
 			Namespace: hzClient.NamespacedName.Namespace,
