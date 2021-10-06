@@ -4,23 +4,23 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"io"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -43,7 +43,9 @@ var _ = Describe("Hazelcast", func() {
 		if !useExistingCluster() {
 			Skip("End to end tests require k8s cluster. Set USE_EXISTING_CLUSTER=true")
 		}
-
+		if runningLocally() {
+			return
+		}
 		By("Checking hazelcast-enterprise-controller-manager running", func() {
 			controllerDep := &appsv1.Deployment{}
 			Eventually(func() (int32, error) {
@@ -54,14 +56,7 @@ var _ = Describe("Hazelcast", func() {
 
 	AfterEach(func() {
 		Expect(k8sClient.Delete(context.Background(), emptyHazelcast(), client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
-
-		Eventually(func() bool {
-			err := k8sClient.Get(context.Background(), lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
-			if err == nil {
-				return false
-			}
-			return errors.IsNotFound(err)
-		}, deleteTimeout, interval).Should(BeTrue())
+		assertDoesNotExist(lookupKey, &hazelcastcomv1alpha1.Hazelcast{})
 	})
 
 	create := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
@@ -81,7 +76,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", func() {
-			hazelcast := load("default.yaml")
+			hazelcast := loadHazelcast("default.yaml")
 			create(hazelcast)
 		})
 	})
@@ -124,7 +119,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(true)
 			}
 
-			hazelcast := load("expose_externally_unisocket.yaml")
+			hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
 			create(hazelcast)
 			assertUseHazelcastUnisocket()
 		})
@@ -134,7 +129,7 @@ var _ = Describe("Hazelcast", func() {
 				assertUseHazelcast(false)
 			}
 
-			hazelcast := load("expose_externally_smart_nodeport.yaml")
+			hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -143,7 +138,7 @@ var _ = Describe("Hazelcast", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
 			}
-			hazelcast := load("expose_externally_smart_loadbalancer.yaml")
+			hazelcast := loadHazelcast("expose_externally_smart_loadbalancer.yaml")
 			create(hazelcast)
 			assertUseHazelcastSmart()
 		})
@@ -151,7 +146,7 @@ var _ = Describe("Hazelcast", func() {
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
-			hazelcast := load("cluster_name.yaml")
+			hazelcast := loadHazelcast("cluster_name.yaml")
 			create(hazelcast)
 			logs := getPodLogs(context.Background(), types.NamespacedName{
 				Name:      hazelcast.Name + "-0",
@@ -171,26 +166,10 @@ var _ = Describe("Hazelcast", func() {
 	})
 })
 
-func useExistingCluster() bool {
-	return strings.ToLower(os.Getenv("USE_EXISTING_CLUSTER")) == "true"
-}
-
-func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
-	err := k8sClient.Get(ctx, name, deploy)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	return deploy.Status.ReadyReplicas, nil
-}
-
-func load(fileName string) *hazelcastcomv1alpha1.Hazelcast {
+func loadHazelcast(fileName string) *hazelcastcomv1alpha1.Hazelcast {
 	h := emptyHazelcast()
 
-	f, err := os.Open(fmt.Sprintf("config/%s", fileName))
+	f, err := os.Open(fmt.Sprintf("config/hazelcast/%s", fileName))
 	Expect(err).ToNot(HaveOccurred())
 	defer f.Close()
 
@@ -211,11 +190,7 @@ func emptyHazelcast() *hazelcastcomv1alpha1.Hazelcast {
 }
 
 func isHazelcastRunning(hz *hazelcastcomv1alpha1.Hazelcast) bool {
-	if hz.Status.Phase == "Running" {
-		return true
-	} else {
-		return false
-	}
+	return hz.Status.Phase == "Running"
 }
 
 func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {

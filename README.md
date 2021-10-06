@@ -130,7 +130,11 @@ You can also run unit & integration tests separately by `make test-unit` and `ma
 
 ### Running end-to-end tests 
 
-You need a Kubernetes cluster and also your local kubectl context configured. Then, execute the following commands.
+You need a Kubernetes cluster and your local kubectl context configured. You can run end-to-end tests by either deploying manager to cluster or running manager locally.
+
+#### Deploy Manager to Cluster
+
+Execute the following commands to run the end-to-end tests.
 
 ```shell
 kubectl create ns <YOUR NAMESPACE>
@@ -140,6 +144,20 @@ make deploy NAMESPACE=<YOUR NAMESPACE> IMG=hazelcast/hazelcast-enterprise-operat
 kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
 
 make test-e2e NAMESPACE=<YOUR NAMESPACE>
+```
+
+#### Run Manager Locally
+
+Execute the following commands to run the end-to-end tests.
+
+```shell
+kubectl create ns <YOUR NAMESPACE>
+
+make install run
+
+kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE> --from-literal=license-key=<YOUR LICENSE KEY>
+
+RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
 ## Running operator locally
