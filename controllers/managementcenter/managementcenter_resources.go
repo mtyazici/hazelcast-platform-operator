@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hazelcast/hazelcast-enterprise-operator/naming"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
@@ -14,10 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	licenseDataKey = "license-key"
 )
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -54,9 +52,9 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 }
 func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name":       "management-center",
-		"app.kubernetes.io/instance":   mc.Name,
-		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
+		naming.ApplicationNameLabel:         naming.ManagementCenter,
+		naming.ApplicationInstanceNameLabel: mc.Name,
+		naming.ApplicationManagedByLabel:    naming.OperatorName,
 	}
 }
 
@@ -93,7 +91,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
-						Name: "management-center",
+						Name: naming.ManagementCenter,
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 8080,
 							Name:          "mancenter",
@@ -105,7 +103,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/health",
 									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
+									Scheme: corev1.URISchemeHTTP,
 								},
 							},
 							InitialDelaySeconds: 10,
@@ -119,7 +117,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/health",
 									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
+									Scheme: corev1.URISchemeHTTP,
 								},
 							},
 							InitialDelaySeconds: 10,
@@ -199,13 +197,13 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: "MC_LICENSE_KEY",
+			Name: naming.LicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: mc.Spec.LicenseKeySecret,
 					},
-					Key: licenseDataKey,
+					Key: naming.LicenseDataKey,
 				},
 			},
 		},

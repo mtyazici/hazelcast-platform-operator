@@ -2,7 +2,7 @@ package hazelcast
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"time"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -46,7 +46,7 @@ func (o optionsBuilder) withReadyMembers(m int) optionsBuilder {
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
 func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
-	h.Status.Cluster.ReadyMembers = strconv.Itoa(options.readyMembers) + "/" + strconv.Itoa(int(h.Spec.ClusterSize))
+	h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", options.readyMembers, h.Spec.ClusterSize)
 	if err := c.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
