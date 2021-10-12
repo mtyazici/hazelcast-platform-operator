@@ -23,11 +23,16 @@ const (
 	LabelValueTrue  = "true"
 	LabelValueFalse = "false"
 
-	OperatorName     = "hazelcast-enterprise-operator"
-	ManagementCenter = "management-center"
-	Hazelcast        = "hazelcast"
-
+	OperatorName      = "hazelcast-enterprise-operator"
+	Hazelcast         = "hazelcast"
 	HazelcastPortName = "hazelcast-port"
+
+	// ManagementCenter MC name
+	ManagementCenter = "management-center"
+	// Mancenter MC short name
+	Mancenter = "mancenter"
+	// MancenterStorageName storage name for MC
+	MancenterStorageName = Mancenter + "-storage"
 )
 
 // Environment variables used for Hazelcast cluster configuration

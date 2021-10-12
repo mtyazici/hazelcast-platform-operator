@@ -64,13 +64,13 @@ func ports() []v1.ServicePort {
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       8080,
-			TargetPort: intstr.FromString("mancenter"),
+			TargetPort: intstr.FromString(naming.Mancenter),
 		},
 		{
 			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       443,
-			TargetPort: intstr.FromString("mancenter"),
+			TargetPort: intstr.FromString(naming.Mancenter),
 		},
 	}
 }
@@ -94,7 +94,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 						Name: naming.ManagementCenter,
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 8080,
-							Name:          "mancenter",
+							Name:          naming.Mancenter,
 							Protocol:      v1.ProtocolTCP,
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
@@ -170,7 +170,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 func persistentVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      "mancenter-storage",
+		Name:      naming.MancenterStorageName,
 		MountPath: "/data",
 	}
 }
@@ -178,7 +178,7 @@ func persistentVolumeMount() corev1.VolumeMount {
 func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mancenter-storage",
+			Name:      naming.MancenterStorageName,
 			Namespace: mc.Namespace,
 			Labels:    labels(mc),
 		},
