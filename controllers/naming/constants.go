@@ -51,8 +51,18 @@ const (
 	RESTEnabled            = "HZ_NETWORK_RESTAPI_ENABLED"
 	RESTHealthCheckEnabled = "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED"
 
-	LicenseKey  = "HZ_LICENSEKEY"
-	ClusterName = "HZ_CLUSTERNAME"
+	// HzLicenseKey License key for Hazelcast cluster
+	HzLicenseKey = "HZ_LICENSEKEY"
+	ClusterName  = "HZ_CLUSTERNAME"
+)
+
+// Environment variables used for Management Center configuration
+const (
+	// McLicenseKey License key for Management Center
+	McLicenseKey = "MC_LICENSE_KEY"
+	// McInitCmd init command for Management Center
+	McInitCmd = "MC_INIT_CMD"
+	JavaOpts  = "JAVA_OPTS"
 )
 
 // Hazelcast default configurations

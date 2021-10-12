@@ -197,7 +197,7 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: naming.LicenseKey,
+			Name: naming.McLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -207,8 +207,8 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 				},
 			},
 		},
-		{Name: "MC_INIT_CMD", Value: clusterAddCommand(mc)},
-		{Name: "JAVA_OPTS", Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+		{Name: naming.McInitCmd, Value: clusterAddCommand(mc)},
+		{Name: naming.JavaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
