@@ -6,7 +6,7 @@ package hazelcast
 import (
 	"fmt"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/naming"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client"

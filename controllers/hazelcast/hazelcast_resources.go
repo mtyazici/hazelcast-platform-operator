@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/naming"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	"k8s.io/apimachinery/pkg/types"
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/naming"
+	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
