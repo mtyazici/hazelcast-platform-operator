@@ -125,16 +125,16 @@ var _ = Describe("Hazelcast", func() {
 		//	assertUseHazelcastUnisocket()
 		//})
 		//
-		//It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
-		//	assertUseHazelcastSmart := func() {
-		//		assertUseHazelcast(false)
-		//	}
-		//
-		//	hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
-		//	create(hazelcast)
-		//	assertUseHazelcastSmart()
-		//})
-		//
+		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
+			assertUseHazelcastSmart := func() {
+				assertUseHazelcast(false)
+			}
+
+			hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
+			create(hazelcast)
+			assertUseHazelcastSmart()
+		})
+
 		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
