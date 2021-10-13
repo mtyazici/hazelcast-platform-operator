@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
-	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -81,68 +79,68 @@ var _ = Describe("Hazelcast", func() {
 		})
 	})
 
-	Describe("Hazelcast CR with expose externally feature", func() {
-		assertUseHazelcast := func(unisocket bool) {
-			ctx := context.Background()
-
-			By("checking Hazelcast discovery service external IP")
-			s := &corev1.Service{}
-			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), lookupKey, s)
-				Expect(err).ToNot(HaveOccurred())
-				return len(s.Status.LoadBalancer.Ingress) > 0
-			}, timeout, interval).Should(BeTrue())
-			ip := s.Status.LoadBalancer.Ingress[0].IP
-			Expect(ip).Should(Not(Equal("")))
-
-			By("connecting Hazelcast client")
-			config := hzClient.Config{}
-			config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
-			config.Cluster.Unisocket = unisocket
-			config.Cluster.Discovery.UsePublicIP = true
-			client, err := hzClient.StartNewClientWithConfig(ctx, config)
-			Expect(err).ToNot(HaveOccurred())
-
-			By("using Hazelcast client")
-			m, err := client.GetMap(ctx, "map")
-			Expect(err).ToNot(HaveOccurred())
-			for i := 0; i < 100; i++ {
-				_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
-				Expect(err).ToNot(HaveOccurred())
-			}
-			err = client.Shutdown(ctx)
-			Expect(err).ToNot(HaveOccurred())
-		}
-
-		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
-			assertUseHazelcastUnisocket := func() {
-				assertUseHazelcast(true)
-			}
-
-			hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
-			create(hazelcast)
-			assertUseHazelcastUnisocket()
-		})
-
-		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
-			assertUseHazelcastSmart := func() {
-				assertUseHazelcast(false)
-			}
-
-			hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
-			create(hazelcast)
-			assertUseHazelcastSmart()
-		})
-
-		It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
-			assertUseHazelcastSmart := func() {
-				assertUseHazelcast(false)
-			}
-			hazelcast := loadHazelcast("expose_externally_smart_loadbalancer.yaml")
-			create(hazelcast)
-			assertUseHazelcastSmart()
-		})
-	})
+	//Describe("Hazelcast CR with expose externally feature", func() {
+	//	assertUseHazelcast := func(unisocket bool) {
+	//		ctx := context.Background()
+	//
+	//		By("checking Hazelcast discovery service external IP")
+	//		s := &corev1.Service{}
+	//		Eventually(func() bool {
+	//			err := k8sClient.Get(context.Background(), lookupKey, s)
+	//			Expect(err).ToNot(HaveOccurred())
+	//			return len(s.Status.LoadBalancer.Ingress) > 0
+	//		}, timeout, interval).Should(BeTrue())
+	//		ip := s.Status.LoadBalancer.Ingress[0].IP
+	//		Expect(ip).Should(Not(Equal("")))
+	//
+	//		By("connecting Hazelcast client")
+	//		config := hzClient.Config{}
+	//		config.Cluster.Network.SetAddresses(fmt.Sprintf("%s:5701", ip))
+	//		config.Cluster.Unisocket = unisocket
+	//		config.Cluster.Discovery.UsePublicIP = true
+	//		client, err := hzClient.StartNewClientWithConfig(ctx, config)
+	//		Expect(err).ToNot(HaveOccurred())
+	//
+	//		By("using Hazelcast client")
+	//		m, err := client.GetMap(ctx, "map")
+	//		Expect(err).ToNot(HaveOccurred())
+	//		for i := 0; i < 100; i++ {
+	//			_, err = m.Put(ctx, strconv.Itoa(i), strconv.Itoa(i))
+	//			Expect(err).ToNot(HaveOccurred())
+	//		}
+	//		err = client.Shutdown(ctx)
+	//		Expect(err).ToNot(HaveOccurred())
+	//	}
+	//
+	//	It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
+	//		assertUseHazelcastUnisocket := func() {
+	//			assertUseHazelcast(true)
+	//		}
+	//
+	//		hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
+	//		create(hazelcast)
+	//		assertUseHazelcastUnisocket()
+	//	})
+	//
+	//	It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
+	//		assertUseHazelcastSmart := func() {
+	//			assertUseHazelcast(false)
+	//		}
+	//
+	//		hazelcast := loadHazelcast("expose_externally_smart_nodeport.yaml")
+	//		create(hazelcast)
+	//		assertUseHazelcastSmart()
+	//	})
+	//
+	//	It("should create Hazelcast cluster exposed with LoadBalancer services and allow connecting with Hazelcast smart client", func() {
+	//		assertUseHazelcastSmart := func() {
+	//			assertUseHazelcast(false)
+	//		}
+	//		hazelcast := loadHazelcast("expose_externally_smart_loadbalancer.yaml")
+	//		create(hazelcast)
+	//		assertUseHazelcastSmart()
+	//	})
+	//})
 
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
