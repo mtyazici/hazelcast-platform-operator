@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,8 +40,8 @@ var _ = Describe("ManagementCenter controller", func() {
 					Namespace: lookupKey.Namespace,
 				},
 				Spec: hazelcastv1alpha1.ManagementCenterSpec{
-					Repository:       "hazelcast/management-center",
-					Version:          "5.0-BETA-2",
+					Repository:       n.MCRepo,
+					Version:          n.MCVersion,
 					LicenseKeySecret: "hazelcast-license-key",
 					ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 						Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
@@ -64,8 +66,8 @@ var _ = Describe("ManagementCenter controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			Expect(fetchedCR.Spec.Repository).Should(Equal("hazelcast/management-center"))
-			Expect(fetchedCR.Spec.Version).Should(Equal("5.0-BETA-2"))
+			Expect(fetchedCR.Spec.Repository).Should(Equal(n.MCRepo))
+			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
 			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal("hazelcast-license-key"))
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(Equal([]hazelcastv1alpha1.HazelcastClusterConfig{}))
 

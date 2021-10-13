@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -24,8 +24,8 @@ import (
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, naming.Finalizer) {
-		controllerutil.AddFinalizer(h, naming.Finalizer)
+	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
+		controllerutil.AddFinalizer(h, n.Finalizer)
 		err := r.Update(ctx, h)
 		if err != nil {
 			logger.Error(err, "Failed to add finalizer into custom resource")
@@ -45,7 +45,7 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 		logger.Error(err, "ClusterRoleBinding could not be removed")
 		return err
 	}
-	controllerutil.RemoveFinalizer(h, naming.Finalizer)
+	controllerutil.RemoveFinalizer(h, n.Finalizer)
 	err := r.Update(ctx, h)
 	if err != nil {
 		logger.Error(err, "Failed to remove finalizer from custom resource")
@@ -248,9 +248,9 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
-	var n int
+	var s int
 	if h.Spec.ExposeExternally.IsSmart() {
-		n = int(h.Spec.ClusterSize)
+		s = int(h.Spec.ClusterSize)
 	}
 
 	// Delete unused services (when the cluster was scaled down)
@@ -264,13 +264,13 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 		}
 		return err
 	}
-	p, err := strconv.Atoi(sts.ObjectMeta.Annotations[naming.ServicePerPodCountAnnotation])
+	p, err := strconv.Atoi(sts.ObjectMeta.Annotations[n.ServicePerPodCountAnnotation])
 	if err != nil {
 		// Annotation not found, no need to delete any services
 		return nil
 	}
 
-	for i := n; i < p; i++ {
+	for i := s; i < p; i++ {
 		s := &v1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
@@ -299,23 +299,23 @@ func servicePerPodName(i int, h *hazelcastv1alpha1.Hazelcast) string {
 
 func servicePerPodSelector(i int, h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labels(h)
-	ls[naming.PodNameLabel] = servicePerPodName(i, h)
+	ls[n.PodNameLabel] = servicePerPodName(i, h)
 	return ls
 }
 
 func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ls := labels(h)
-	ls[naming.ServicePerPodLabelName] = naming.LabelValueTrue
+	ls[n.ServicePerPodLabelName] = n.LabelValueTrue
 	return ls
 }
 
 func ports() []v1.ServicePort {
 	return []corev1.ServicePort{
 		{
-			Name:       naming.HazelcastPortName,
+			Name:       n.HazelcastPortName,
 			Protocol:   corev1.ProtocolTCP,
-			Port:       naming.DefaultHzPort,
-			TargetPort: intstr.FromString(naming.Hazelcast),
+			Port:       n.DefaultHzPort,
+			TargetPort: intstr.FromString(n.Hazelcast),
 		},
 	}
 }
@@ -361,17 +361,17 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 				Spec: v1.PodSpec{
 					ServiceAccountName: h.Name,
 					Containers: []v1.Container{{
-						Name: naming.Hazelcast,
+						Name: n.Hazelcast,
 						Ports: []v1.ContainerPort{{
-							ContainerPort: naming.DefaultHzPort,
-							Name:          naming.Hazelcast,
+							ContainerPort: n.DefaultHzPort,
+							Name:          n.Hazelcast,
 							Protocol:      v1.ProtocolTCP,
 						}},
 						LivenessProbe: &v1.Probe{
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(naming.DefaultHzPort),
+									Port:   intstr.FromInt(n.DefaultHzPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -385,7 +385,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							Handler: v1.Handler{
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
-									Port:   intstr.FromInt(naming.DefaultHzPort),
+									Port:   intstr.FromInt(n.DefaultHzPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -435,35 +435,35 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: naming.HzLicenseKey,
+			Name: n.HzLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: h.Spec.LicenseKeySecret,
 					},
-					Key: naming.LicenseDataKey,
+					Key: n.LicenseDataKey,
 				},
 			},
 		},
-		{Name: naming.KubernetesEnabled, Value: naming.LabelValueTrue},
-		{Name: naming.KubernetesServiceName, Value: h.Name},
-		{Name: naming.RESTEnabled, Value: naming.LabelValueTrue},
-		{Name: naming.RESTHealthCheckEnabled, Value: naming.LabelValueTrue},
+		{Name: n.KubernetesEnabled, Value: n.LabelValueTrue},
+		{Name: n.KubernetesServiceName, Value: h.Name},
+		{Name: n.RESTEnabled, Value: n.LabelValueTrue},
+		{Name: n.RESTHealthCheckEnabled, Value: n.LabelValueTrue},
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		envs = append(envs, v1.EnvVar{Name: naming.KubernetesNodeNameAsExternalAddress, Value: naming.LabelValueTrue})
+		envs = append(envs, v1.EnvVar{Name: n.KubernetesNodeNameAsExternalAddress, Value: n.LabelValueTrue})
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
 		envs = append(envs,
-			v1.EnvVar{Name: naming.KubernetesServicePerPodLabel, Value: naming.ServicePerPodLabelName},
-			v1.EnvVar{Name: naming.KubernetesServicePerPodLabelValue, Value: naming.LabelValueTrue},
+			v1.EnvVar{Name: n.KubernetesServicePerPodLabel, Value: n.ServicePerPodLabelName},
+			v1.EnvVar{Name: n.KubernetesServicePerPodLabelValue, Value: n.LabelValueTrue},
 		)
 	}
 
 	if h.Spec.ClusterName != "" {
-		envs = append(envs, v1.EnvVar{Name: naming.ClusterName, Value: h.Spec.ClusterName})
+		envs = append(envs, v1.EnvVar{Name: n.ClusterName, Value: h.Spec.ClusterName})
 	}
 
 	return envs
@@ -471,16 +471,16 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 
 func labels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return map[string]string{
-		naming.ApplicationNameLabel:         naming.Hazelcast,
-		naming.ApplicationInstanceNameLabel: h.Name,
-		naming.ApplicationManagedByLabel:    naming.OperatorName,
+		n.ApplicationNameLabel:         n.Hazelcast,
+		n.ApplicationInstanceNameLabel: h.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
 	}
 }
 
 func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[naming.ServicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
+		ans[n.ServicePerPodCountAnnotation] = strconv.Itoa(int(h.Spec.ClusterSize))
 	}
 	return ans
 }
@@ -488,7 +488,7 @@ func statefulSetAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	ans := map[string]string{}
 	if h.Spec.ExposeExternally.IsSmart() {
-		ans[naming.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
+		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
 	}
 	return ans
 }

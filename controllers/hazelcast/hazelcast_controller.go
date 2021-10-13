@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -84,7 +84,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			logger.Error(err, "Finalizer execution failed")
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
-		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", naming.Finalizer)
+		logger.V(1).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
 	}
 

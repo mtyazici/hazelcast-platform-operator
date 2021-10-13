@@ -2,10 +2,12 @@ package integration
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -21,14 +23,14 @@ var _ = Describe("Hazelcast controller", func() {
 	const (
 		hzKeyName = "hazelcast-test"
 		namespace = "default"
-		finalizer = "hazelcast.com/finalizer"
+		finalizer = n.Finalizer
 
 		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
 
-		clusterSize      = 3
-		repository       = "hazelcast/hazelcast-enterprise"
-		version          = "5.0-BETA-1"
+		clusterSize      = n.DefaultClusterSize
+		repository       = n.HazelcastRepo
+		version          = n.HazelcastVersion
 		licenseKeySecret = "hazelcast-license-key"
 	)
 
@@ -38,8 +40,8 @@ var _ = Describe("Hazelcast controller", func() {
 	}
 
 	labelFilter := client.MatchingLabels{
-		"app.kubernetes.io/name":       "hazelcast",
-		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
+		n.ApplicationNameLabel:      n.Hazelcast,
+		n.ApplicationManagedByLabel: n.Hazelcast,
 	}
 
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {

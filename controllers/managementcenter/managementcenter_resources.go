@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -52,9 +52,9 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 }
 func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return map[string]string{
-		naming.ApplicationNameLabel:         naming.ManagementCenter,
-		naming.ApplicationInstanceNameLabel: mc.Name,
-		naming.ApplicationManagedByLabel:    naming.OperatorName,
+		n.ApplicationNameLabel:         n.ManagementCenter,
+		n.ApplicationInstanceNameLabel: mc.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
 	}
 }
 
@@ -64,13 +64,13 @@ func ports() []v1.ServicePort {
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       8080,
-			TargetPort: intstr.FromString(naming.Mancenter),
+			TargetPort: intstr.FromString(n.Mancenter),
 		},
 		{
 			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       443,
-			TargetPort: intstr.FromString(naming.Mancenter),
+			TargetPort: intstr.FromString(n.Mancenter),
 		},
 	}
 }
@@ -91,10 +91,10 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
-						Name: naming.ManagementCenter,
+						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 8080,
-							Name:          naming.Mancenter,
+							Name:          n.Mancenter,
 							Protocol:      v1.ProtocolTCP,
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
@@ -170,7 +170,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 func persistentVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      naming.MancenterStorageName,
+		Name:      n.MancenterStorageName,
 		MountPath: "/data",
 	}
 }
@@ -178,7 +178,7 @@ func persistentVolumeMount() corev1.VolumeMount {
 func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      naming.MancenterStorageName,
+			Name:      n.MancenterStorageName,
 			Namespace: mc.Namespace,
 			Labels:    labels(mc),
 		},
@@ -197,18 +197,18 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: naming.McLicenseKey,
+			Name: n.McLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: mc.Spec.LicenseKeySecret,
 					},
-					Key: naming.LicenseDataKey,
+					Key: n.LicenseDataKey,
 				},
 			},
 		},
-		{Name: naming.McInitCmd, Value: clusterAddCommand(mc)},
-		{Name: naming.JavaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+		{Name: n.McInitCmd, Value: clusterAddCommand(mc)},
+		{Name: n.JavaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
