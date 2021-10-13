@@ -41,7 +41,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 	labelFilter := client.MatchingLabels{
 		n.ApplicationNameLabel:      n.Hazelcast,
-		n.ApplicationManagedByLabel: n.Hazelcast,
+		n.ApplicationManagedByLabel: n.OperatorName,
 	}
 
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
