@@ -115,16 +115,16 @@ var _ = Describe("Hazelcast", func() {
 			Expect(err).ToNot(HaveOccurred())
 		}
 
-		//It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
-		//	assertUseHazelcastUnisocket := func() {
-		//		assertUseHazelcast(true)
-		//	}
-		//
-		//	hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
-		//	create(hazelcast)
-		//	assertUseHazelcastUnisocket()
-		//})
-		//
+		It("should create Hazelcast cluster and allow connecting with Hazelcast unisocket client", func() {
+			assertUseHazelcastUnisocket := func() {
+				assertUseHazelcast(true)
+			}
+
+			hazelcast := loadHazelcast("expose_externally_unisocket.yaml")
+			create(hazelcast)
+			assertUseHazelcastUnisocket()
+		})
+
 		It("should create Hazelcast cluster exposed with NodePort services and allow connecting with Hazelcast smart client", func() {
 			assertUseHazelcastSmart := func() {
 				assertUseHazelcast(false)
