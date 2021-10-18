@@ -3,6 +3,8 @@ package hazelcast
 import (
 	"time"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+
 	"github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hzTypes "github.com/hazelcast/hazelcast-go-client/types"
@@ -24,7 +26,7 @@ var _ = Describe("Hazelcast status", func() {
 		triggerReconcileChan: make(chan event.GenericEvent),
 		NamespacedName: types.NamespacedName{
 			Namespace: "default",
-			Name:      "hazelcast",
+			Name:      n.Hazelcast,
 		},
 	}
 

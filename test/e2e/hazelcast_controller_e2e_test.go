@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	hzClient "github.com/hazelcast/hazelcast-go-client"
+
+	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"

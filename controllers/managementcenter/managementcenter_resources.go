@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+
 	"github.com/go-logr/logr"
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/util"
@@ -16,8 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// Environment variables used for Management Center configuration
 const (
-	licenseDataKey = "license-key"
+	// mcLicenseKey License key for Management Center
+	mcLicenseKey = "MC_LICENSE_KEY"
+	// mcInitCmd init command for Management Center
+	mcInitCmd = "MC_INIT_CMD"
+	javaOpts  = "JAVA_OPTS"
 )
 
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
@@ -54,9 +61,9 @@ func metadata(mc *hazelcastv1alpha1.ManagementCenter) metav1.ObjectMeta {
 }
 func labels(mc *hazelcastv1alpha1.ManagementCenter) map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name":       "management-center",
-		"app.kubernetes.io/instance":   mc.Name,
-		"app.kubernetes.io/managed-by": "hazelcast-enterprise-operator",
+		n.ApplicationNameLabel:         n.ManagementCenter,
+		n.ApplicationInstanceNameLabel: mc.Name,
+		n.ApplicationManagedByLabel:    n.OperatorName,
 	}
 }
 
@@ -66,13 +73,13 @@ func ports() []v1.ServicePort {
 			Name:       "http",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       8080,
-			TargetPort: intstr.FromString("mancenter"),
+			TargetPort: intstr.FromString(n.Mancenter),
 		},
 		{
 			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
 			Port:       443,
-			TargetPort: intstr.FromString("mancenter"),
+			TargetPort: intstr.FromString(n.Mancenter),
 		},
 	}
 }
@@ -93,10 +100,10 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{
-						Name: "management-center",
+						Name: n.ManagementCenter,
 						Ports: []v1.ContainerPort{{
 							ContainerPort: 8080,
-							Name:          "mancenter",
+							Name:          n.Mancenter,
 							Protocol:      v1.ProtocolTCP,
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
@@ -105,7 +112,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/health",
 									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
+									Scheme: corev1.URISchemeHTTP,
 								},
 							},
 							InitialDelaySeconds: 10,
@@ -119,7 +126,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 								HTTPGet: &v1.HTTPGetAction{
 									Path:   "/health",
 									Port:   intstr.FromInt(8081),
-									Scheme: "HTTP",
+									Scheme: corev1.URISchemeHTTP,
 								},
 							},
 							InitialDelaySeconds: 10,
@@ -172,7 +179,7 @@ func (r *ManagementCenterReconciler) reconcileStatefulset(ctx context.Context, m
 
 func persistentVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      "mancenter-storage",
+		Name:      n.MancenterStorageName,
 		MountPath: "/data",
 	}
 }
@@ -180,7 +187,7 @@ func persistentVolumeMount() corev1.VolumeMount {
 func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mancenter-storage",
+			Name:      n.MancenterStorageName,
 			Namespace: mc.Namespace,
 			Labels:    labels(mc),
 		},
@@ -199,18 +206,18 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: "MC_LICENSE_KEY",
+			Name: mcLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: mc.Spec.LicenseKeySecret,
 					},
-					Key: licenseDataKey,
+					Key: n.LicenseDataKey,
 				},
 			},
 		},
-		{Name: "MC_INIT_CMD", Value: clusterAddCommand(mc)},
-		{Name: "JAVA_OPTS", Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+		{Name: mcInitCmd, Value: clusterAddCommand(mc)},
+		{Name: javaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
