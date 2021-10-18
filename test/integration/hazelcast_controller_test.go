@@ -31,7 +31,7 @@ var _ = Describe("Hazelcast controller", func() {
 		clusterSize      = n.DefaultClusterSize
 		repository       = n.HazelcastRepo
 		version          = n.HazelcastVersion
-		licenseKeySecret = "hazelcast-license-key"
+		licenseKeySecret = n.LicenseKeySecret
 	)
 
 	lookupKey := types.NamespacedName{

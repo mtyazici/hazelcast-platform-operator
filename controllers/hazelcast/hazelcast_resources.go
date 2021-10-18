@@ -23,6 +23,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// Environment variables used for Hazelcast cluster configuration
+const (
+	// kubernetesEnabled enable Kubernetes discovery
+	kubernetesEnabled = "HZ_NETWORK_JOIN_KUBERNETES_ENABLED"
+	// kubernetesServiceName used to scan only PODs connected to the given service
+	kubernetesServiceName = "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME"
+	// kubernetesNodeNameAsExternalAddress uses the node name to connect to a NodePort service instead of looking up the external IP using the API
+	kubernetesNodeNameAsExternalAddress = "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"
+	// kubernetesServicePerPodLabel label name used to tag services that should form the Hazelcast cluster together
+	kubernetesServicePerPodLabel = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"
+	// kubernetesServicePerPodLabelValue label value used to tag services that should form the Hazelcast cluster together
+	kubernetesServicePerPodLabelValue = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"
+
+	restEnabled            = "HZ_NETWORK_RESTAPI_ENABLED"
+	restHealthCheckEnabled = "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED"
+
+	// hzLicenseKey License key for Hazelcast cluster
+	hzLicenseKey = "HZ_LICENSEKEY"
+	clusterName  = "HZ_CLUSTERNAME"
+)
+
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		controllerutil.AddFinalizer(h, n.Finalizer)
@@ -435,7 +456,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: n.HzLicenseKey,
+			Name: hzLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -445,25 +466,25 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 				},
 			},
 		},
-		{Name: n.KubernetesEnabled, Value: n.LabelValueTrue},
-		{Name: n.KubernetesServiceName, Value: h.Name},
-		{Name: n.RESTEnabled, Value: n.LabelValueTrue},
-		{Name: n.RESTHealthCheckEnabled, Value: n.LabelValueTrue},
+		{Name: kubernetesEnabled, Value: n.LabelValueTrue},
+		{Name: kubernetesServiceName, Value: h.Name},
+		{Name: restEnabled, Value: n.LabelValueTrue},
+		{Name: restHealthCheckEnabled, Value: n.LabelValueTrue},
 	}
 
 	if h.Spec.ExposeExternally.UsesNodeName() {
-		envs = append(envs, v1.EnvVar{Name: n.KubernetesNodeNameAsExternalAddress, Value: n.LabelValueTrue})
+		envs = append(envs, v1.EnvVar{Name: kubernetesNodeNameAsExternalAddress, Value: n.LabelValueTrue})
 	}
 
 	if h.Spec.ExposeExternally.IsSmart() {
 		envs = append(envs,
-			v1.EnvVar{Name: n.KubernetesServicePerPodLabel, Value: n.ServicePerPodLabelName},
-			v1.EnvVar{Name: n.KubernetesServicePerPodLabelValue, Value: n.LabelValueTrue},
+			v1.EnvVar{Name: kubernetesServicePerPodLabel, Value: n.ServicePerPodLabelName},
+			v1.EnvVar{Name: kubernetesServicePerPodLabelValue, Value: n.LabelValueTrue},
 		)
 	}
 
 	if h.Spec.ClusterName != "" {
-		envs = append(envs, v1.EnvVar{Name: n.ClusterName, Value: h.Spec.ClusterName})
+		envs = append(envs, v1.EnvVar{Name: clusterName, Value: h.Spec.ClusterName})
 	}
 
 	return envs

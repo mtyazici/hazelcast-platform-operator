@@ -6,6 +6,8 @@ const (
 	Finalizer = "hazelcast.com/finalizer"
 	// LicenseDataKey is a key used in k8s secret that holds the Hazelcast license
 	LicenseDataKey = "license-key"
+	// LicenseKeySecret default license key secret
+	LicenseKeySecret = "hazelcast-license-key"
 	// ServicePerPodLabelName set to true when the service is a Service per pod
 	ServicePerPodLabelName       = "hazelcast.com/service-per-pod"
 	ServicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
@@ -33,36 +35,6 @@ const (
 	Mancenter = "mancenter"
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
-)
-
-// Environment variables used for Hazelcast cluster configuration
-const (
-	// KubernetesEnabled enable Kubernetes discovery
-	KubernetesEnabled = "HZ_NETWORK_JOIN_KUBERNETES_ENABLED"
-	// KubernetesServiceName used to scan only PODs connected to the given service
-	KubernetesServiceName = "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME"
-	// KubernetesNodeNameAsExternalAddress uses the node name to connect to a NodePort service instead of looking up the external IP using the API
-	KubernetesNodeNameAsExternalAddress = "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"
-	// KubernetesServicePerPodLabel label name used to tag services that should form the Hazelcast cluster together
-	KubernetesServicePerPodLabel = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"
-	// KubernetesServicePerPodLabelValue label value used to tag services that should form the Hazelcast cluster together
-	KubernetesServicePerPodLabelValue = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"
-
-	RESTEnabled            = "HZ_NETWORK_RESTAPI_ENABLED"
-	RESTHealthCheckEnabled = "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED"
-
-	// HzLicenseKey License key for Hazelcast cluster
-	HzLicenseKey = "HZ_LICENSEKEY"
-	ClusterName  = "HZ_CLUSTERNAME"
-)
-
-// Environment variables used for Management Center configuration
-const (
-	// McLicenseKey License key for Management Center
-	McLicenseKey = "MC_LICENSE_KEY"
-	// McInitCmd init command for Management Center
-	McInitCmd = "MC_INIT_CMD"
-	JavaOpts  = "JAVA_OPTS"
 )
 
 // Hazelcast default configurations

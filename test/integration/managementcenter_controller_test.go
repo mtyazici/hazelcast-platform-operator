@@ -42,7 +42,7 @@ var _ = Describe("ManagementCenter controller", func() {
 				Spec: hazelcastv1alpha1.ManagementCenterSpec{
 					Repository:       n.MCRepo,
 					Version:          n.MCVersion,
-					LicenseKeySecret: "hazelcast-license-key",
+					LicenseKeySecret: n.LicenseKeySecret,
 					ExternalConnectivity: hazelcastv1alpha1.ExternalConnectivityConfiguration{
 						Type: hazelcastv1alpha1.ExternalConnectivityTypeLoadBalancer,
 					},
@@ -68,7 +68,7 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			Expect(fetchedCR.Spec.Repository).Should(Equal(n.MCRepo))
 			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
-			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal("hazelcast-license-key"))
+			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal(n.LicenseKeySecret))
 			Expect(fetchedCR.Spec.HazelcastClusters).Should(Equal([]hazelcastv1alpha1.HazelcastClusterConfig{}))
 
 			expectedExternalConnectivity := hazelcastv1alpha1.ExternalConnectivityConfiguration{

@@ -18,6 +18,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// Environment variables used for Management Center configuration
+const (
+	// mcLicenseKey License key for Management Center
+	mcLicenseKey = "MC_LICENSE_KEY"
+	// mcInitCmd init command for Management Center
+	mcInitCmd = "MC_INIT_CMD"
+	javaOpts  = "JAVA_OPTS"
+)
+
 func (r *ManagementCenterReconciler) reconcileService(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	service := &corev1.Service{
 		ObjectMeta: metadata(mc),
@@ -197,7 +206,7 @@ func persistentVolumeClaim(mc *hazelcastv1alpha1.ManagementCenter) corev1.Persis
 func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 	envs := []v1.EnvVar{
 		{
-			Name: n.McLicenseKey,
+			Name: mcLicenseKey,
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -207,8 +216,8 @@ func env(mc *hazelcastv1alpha1.ManagementCenter) []v1.EnvVar {
 				},
 			},
 		},
-		{Name: n.McInitCmd, Value: clusterAddCommand(mc)},
-		{Name: n.JavaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
+		{Name: mcInitCmd, Value: clusterAddCommand(mc)},
+		{Name: javaOpts, Value: "-Dhazelcast.mc.license=$(MC_LICENSE_KEY) -Dhazelcast.mc.healthCheck.enable=true -Dhazelcast.mc.tls.enabled=false -Dmancenter.ssl=false"},
 	}
 	return envs
 }
