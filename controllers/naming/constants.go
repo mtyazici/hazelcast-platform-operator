@@ -6,7 +6,7 @@ const (
 	Finalizer = "hazelcast.com/finalizer"
 	// LicenseDataKey is a key used in k8s secret that holds the Hazelcast license
 	LicenseDataKey = "license-key"
-	// ServicePerPodLabelName
+	// ServicePerPodLabelName set to true when the service is a Service per pod
 	ServicePerPodLabelName       = "hazelcast.com/service-per-pod"
 	ServicePerPodCountAnnotation = "hazelcast.com/service-per-pod-count"
 	ExposeExternallyAnnotation   = "hazelcast.com/expose-externally-member-access"
