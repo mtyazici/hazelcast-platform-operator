@@ -88,6 +88,11 @@ var _ = Describe("Hazelcast controller", func() {
 		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Pending))
 	}
 
+	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) {
+		By("ensuring that the status is failed")
+		Expect(hz.Status.Phase).Should(Equal(hazelcastv1alpha1.Failed))
+	}
+
 	Context("Hazelcast CustomResource with default specs", func() {
 		It("should handle CR and sub resources correctly", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
@@ -340,6 +345,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			By("updating type to unisocket")
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
+			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
 			fetchedCR = Fetch()
 			EnsureStatus(fetchedCR)
@@ -367,6 +373,40 @@ var _ = Describe("Hazelcast controller", func() {
 			EnsureStatus(fetchedCR)
 			serviceList = FetchServices(1)
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
+
+			Delete()
+		})
+
+		It("should return expected messages when exposeExternally is misconfigured", func() {
+			By("creating the cluster with unisocket client with incorrect configuration")
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+					ExposeExternally: hazelcastv1alpha1.ExposeExternallyConfiguration{
+						Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
+						DiscoveryServiceType: corev1.ServiceTypeNodePort,
+						MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+					},
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureFailedStatus(fetchedCR)
+			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
+
+			By("fixing the incorrect configuration")
+			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			Expect(fetchedCR.Status.Message).To(BeEmpty())
 
 			Delete()
 		})

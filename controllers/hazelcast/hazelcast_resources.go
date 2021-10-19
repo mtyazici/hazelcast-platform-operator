@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -520,4 +521,22 @@ func metadata(h *hazelcastv1alpha1.Hazelcast) metav1.ObjectMeta {
 		Namespace: h.Namespace,
 		Labels:    labels(h),
 	}
+}
+
+func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	hs, err := json.Marshal(h.Spec)
+	if err != nil {
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, h, func() error {
+		ans := map[string]string{}
+		ans[n.LastSuccessfulConfigAnnotation] = string(hs)
+		h.ObjectMeta.Annotations = ans
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
+	}
+	return err
 }
