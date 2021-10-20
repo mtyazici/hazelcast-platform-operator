@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -370,33 +369,6 @@ var _ = Describe("Hazelcast controller", func() {
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 
 			Delete()
-		})
-	})
-
-	Context("Hazelcast member status", func() {
-
-		EnsureReadyMembers := func(hz *hazelcastv1alpha1.Hazelcast) {
-			By("ensuring that the status is correct")
-			Expect(hz.Status.Cluster.ReadyMembers).Should(Equal(fmt.Sprintf("%d/%d", hz.Spec.ClusterSize, hz.Spec.ClusterSize)))
-		}
-
-		It("should update HZ cluster status", func() {
-			By("creating the cluster of size 3")
-			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      3,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
-				},
-			}
-			Create(hz)
-			fetchedCR := Fetch()
-			EnsureReadyMembers(fetchedCR)
 		})
 	})
 })

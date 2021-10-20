@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -163,6 +165,49 @@ var _ = Describe("Hazelcast", func() {
 				}
 			}
 			Fail("Cluster name " + hazelcast.Spec.ClusterName + " not found in the logs")
+		})
+	})
+
+	Context("Hazelcast member status", func() {
+
+		evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			Eventually(func() string {
+				err := k8sClient.Get(context.Background(), lookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				return hz.Status.Cluster.ReadyMembers
+			}, timeout, interval).Should(Equal("3/3"))
+		}
+
+		It("should update HZ ready members status", func() {
+			h := loadHazelcast("default.yaml")
+			create(h)
+
+			evaluateReadyMembers(h)
+
+			logs := getPodLogs(context.Background(), types.NamespacedName{
+				Name:      h.Name + "-2",
+				Namespace: h.Namespace,
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if strings.Contains(line, "Members {size:3, ver:3}") {
+					return
+				}
+			}
+			Fail("Members of size 3 not found in the logs")
+
+			By("removing pods so that cluster gets recreated", func() {
+				err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace(lookupKey.Namespace), client.MatchingLabels{
+					n.ApplicationNameLabel:         n.Hazelcast,
+					n.ApplicationInstanceNameLabel: h.Name,
+					n.ApplicationManagedByLabel:    n.OperatorName,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				evaluateReadyMembers(h)
+			})
 		})
 	})
 })
