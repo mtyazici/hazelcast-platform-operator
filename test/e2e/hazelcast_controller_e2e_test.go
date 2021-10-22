@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
+
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-enterprise-operator/api/v1alpha1"
@@ -149,20 +151,39 @@ var _ = Describe("Hazelcast", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
 			hazelcast := loadHazelcast("cluster_name.yaml")
 			create(hazelcast)
-			logs := getPodLogs(context.Background(), types.NamespacedName{
-				Name:      hazelcast.Name + "-0",
-				Namespace: hazelcast.Namespace,
-			})
-			defer logs.Close()
 
-			scanner := bufio.NewScanner(logs)
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.Contains(line, "Cluster name: "+hazelcast.Spec.ClusterName) {
-					return
-				}
-			}
-			Fail("Cluster name " + hazelcast.Spec.ClusterName + " not found in the logs")
+			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
+		})
+	})
+
+	Context("Hazelcast member status", func() {
+
+		evaluateReadyMembers := func(h *hazelcastcomv1alpha1.Hazelcast) {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			Eventually(func() string {
+				err := k8sClient.Get(context.Background(), lookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				return hz.Status.Cluster.ReadyMembers
+			}, timeout, interval).Should(Equal("3/3"))
+		}
+
+		It("should update HZ ready members status", func() {
+			h := loadHazelcast("default.yaml")
+			create(h)
+
+			evaluateReadyMembers(h)
+
+			assertMemberLogs(h, "Members {size:3, ver:3}")
+
+			By("removing pods so that cluster gets recreated", func() {
+				err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace(lookupKey.Namespace), client.MatchingLabels{
+					n.ApplicationNameLabel:         n.Hazelcast,
+					n.ApplicationInstanceNameLabel: h.Name,
+					n.ApplicationManagedByLabel:    n.OperatorName,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				evaluateReadyMembers(h)
+			})
 		})
 	})
 })
@@ -217,4 +238,20 @@ func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
 		panic(err)
 	}
 	return podLogs
+}
+
+func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
+	logs := getPodLogs(context.Background(), types.NamespacedName{
+		Name:      h.Name + "-0",
+		Namespace: h.Namespace,
+	})
+	defer logs.Close()
+	scanner := bufio.NewScanner(logs)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, expected) {
+			return
+		}
+	}
+	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
