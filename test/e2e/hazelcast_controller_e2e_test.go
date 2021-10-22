@@ -151,20 +151,8 @@ var _ = Describe("Hazelcast", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", func() {
 			hazelcast := loadHazelcast("cluster_name.yaml")
 			create(hazelcast)
-			logs := getPodLogs(context.Background(), types.NamespacedName{
-				Name:      hazelcast.Name + "-0",
-				Namespace: hazelcast.Namespace,
-			})
-			defer logs.Close()
 
-			scanner := bufio.NewScanner(logs)
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.Contains(line, "Cluster name: "+hazelcast.Spec.ClusterName) {
-					return
-				}
-			}
-			Fail("Cluster name " + hazelcast.Spec.ClusterName + " not found in the logs")
+			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 		})
 	})
 
@@ -185,19 +173,7 @@ var _ = Describe("Hazelcast", func() {
 
 			evaluateReadyMembers(h)
 
-			logs := getPodLogs(context.Background(), types.NamespacedName{
-				Name:      h.Name + "-2",
-				Namespace: h.Namespace,
-			})
-			defer logs.Close()
-			scanner := bufio.NewScanner(logs)
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.Contains(line, "Members {size:3, ver:3}") {
-					return
-				}
-			}
-			Fail("Members of size 3 not found in the logs")
+			assertMemberLogs(h, "Members {size:3, ver:3}")
 
 			By("removing pods so that cluster gets recreated", func() {
 				err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace(lookupKey.Namespace), client.MatchingLabels{
@@ -262,4 +238,20 @@ func getPodLogs(ctx context.Context, pod types.NamespacedName) io.ReadCloser {
 		panic(err)
 	}
 	return podLogs
+}
+
+func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
+	logs := getPodLogs(context.Background(), types.NamespacedName{
+		Name:      h.Name + "-0",
+		Namespace: h.Namespace,
+	})
+	defer logs.Close()
+	scanner := bufio.NewScanner(logs)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, expected) {
+			return
+		}
+	}
+	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
