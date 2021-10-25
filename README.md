@@ -163,6 +163,14 @@ RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ## Check that the Hazelcast Cluster is Running
 
 To check if a cluster is running, see the `status` field of the Hazelcast resource.
+
+The status can be checked with `kubectl get hazelcast`:
+```shell
+NAME        STATUS    MEMBERS
+hazelcast   Running   3/3
+```
+
+Or `kubectl get hazelcast -o=yaml` for the long format:
 ```yaml
 status:
   hazelcastClusterStatus:
