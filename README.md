@@ -160,9 +160,9 @@ kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE>
 RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
-## Check Hazelcast cluster status
+## Check that the Hazelcast Cluster is Running
 
-The cluster state is reported in the `status` field of the Hazelcast resource.
+To check if a cluster is running, see the `status` field of the Hazelcast resource.
 ```yaml
 status:
   hazelcastClusterStatus:
@@ -170,15 +170,15 @@ status:
   phase: Running
 ```
 
-The field `phase` of the status represents the current state of the cluster with the following possible values:
+The `phase` field represents the current status of the cluster, and can contain any of the following values:
 
-* `Running`: the cluster is up and running
-* `Pending`: the cluster is in the process of starting
-* `Failed`: an error has occurred while starting the cluster
+* `Running`: The cluster is up and running.
+* `Pending`: The cluster is in the process of starting.
+* `Failed`: An error occurred while starting the cluster.
 
-The field `readyMembers` in the `hazelcastClusterStatus` represents the number of Hazelcast members that are connected to the cluster.
+The `readyMembers` field represents the number of Hazelcast members that are connected to the cluster.
 
-> Note: `readyMembers` does not guarantee consistency with the current cluster state and should be used only as an informational field.
+> Note: Use the `readyMembers` field only for informational purposes. This field is not always accurate. Some members may have joined or left the cluster since this field was last updated.
 
 ## Running operator locally
 
