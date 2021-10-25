@@ -160,6 +160,26 @@ kubectl create secret generic hazelcast-license-key --namespace <YOUR NAMESPACE>
 RUN_MANAGER_LOCALLY=true make test-e2e NAMESPACE=<YOUR NAMESPACE>
 ```
 
+## Check Hazelcast cluster status
+
+The cluster state is reported in the `status` field of the Hazelcast resource.
+```yaml
+status:
+  hazelcastClusterStatus:
+    readyMembers: 3/3
+  phase: Running
+```
+
+The field `phase` of the status represents the current state of the cluster with the following possible values:
+
+* `Running`: the cluster is up and running
+* `Pending`: the cluster is in the process of starting
+* `Failed`: an error has occurred while starting the cluster
+
+The field `readyMembers` in the `hazelcastClusterStatus` represents the number of Hazelcast members that are connected to the cluster.
+
+> Note: `readyMembers` does not guarantee consistency with the current cluster state and should be used only as an informational field.
+
 ## Running operator locally
 
 Hazelcast Enterprise Operator uses `hazelcast go-client` to connect to the cluster.
