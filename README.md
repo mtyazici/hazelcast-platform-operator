@@ -22,6 +22,8 @@ make deploy IMG=hazelcast/hazelcast-enterprise-operator:5-preview-snapshot
 
 > Note: If you want to run the operator locally, you can execute `make install run` instead of `make deploy`.
 
+> Note: By default, Hazelcast Operator is installed into the `default` namespace. If you want to change it, you can pass `NAMESPACE` to `make` commands.
+
 ### Step 3: Start Hazelcast Enterprise Cluster
 
 Run the following command to start Hazelcast Enterprise Cluster via applying CR yaml:
@@ -37,7 +39,7 @@ metadata:
 spec:
   clusterSize: 3
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
-  version: '5.0-BETA-2-slim'
+  version: '5.0'
   licenseKeySecret: hazelcast-license-key
 ```
 
@@ -78,7 +80,7 @@ metadata:
   name: managementcenter
 spec:
   repository: 'hazelcast/management-center'
-  version: '5.0-BETA-2'
+  version: '5.0'
   licenseKeySecret: hazelcast-license-key
   externalConnectivity:
     type: LoadBalancer
