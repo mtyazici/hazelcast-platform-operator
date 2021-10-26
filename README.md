@@ -184,6 +184,8 @@ The `phase` field represents the current status of the cluster, and can contain 
 * `Pending`: The cluster is in the process of starting.
 * `Failed`: An error occurred while starting the cluster.
 
+Any additional info such as validation errors will be provided in the `message` field.
+
 The `readyMembers` field represents the number of Hazelcast members that are connected to the cluster.
 
 > Note: Use the `readyMembers` field only for informational purposes. This field is not always accurate. Some members may have joined or left the cluster since this field was last updated.
