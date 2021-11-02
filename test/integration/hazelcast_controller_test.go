@@ -411,4 +411,46 @@ var _ = Describe("Hazelcast controller", func() {
 			Delete()
 		})
 	})
+	Context("Hazelcast CustomResource with default values", func() {
+		It("should create CR with default values when empty specs are applied", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureStatus(fetchedCR)
+
+			Expect(fetchedCR.Spec).To(Equal(*hazelcastv1alpha1.DefaultHazelcastSpec()))
+			Delete()
+		})
+		It("should update the CR with the default values when updating the empty specs are applied", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      lookupKey.Name,
+					Namespace: lookupKey.Namespace,
+				},
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize:      3,
+					Repository:       repository,
+					Version:          version,
+					LicenseKeySecret: licenseKeySecret,
+				},
+			}
+			Create(hz)
+			fetchedCR := Fetch()
+			EnsureStatus(fetchedCR)
+
+			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{
+				ClusterName: "myname",
+			}
+			Update(fetchedCR)
+			fetchedCR = Fetch()
+			EnsureStatus(fetchedCR)
+			Expect(fetchedCR.Spec).To(Equal(*hazelcastv1alpha1.DefaultHazelcastSpec()))
+			Delete()
+		})
+	})
 })

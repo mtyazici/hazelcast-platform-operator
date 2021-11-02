@@ -53,7 +53,7 @@ spec:
                 default: 3
                 description: Number of Hazelcast members in the cluster.
                 format: int32
-                minimum: 1
+                minimum: 0
                 type: integer
               exposeExternally:
                 description: Configuration to expose Hazelcast cluster to external

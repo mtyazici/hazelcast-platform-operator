@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"fmt"
 
+	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,10 +20,19 @@ const (
 	Pending Phase = "Pending"
 )
 
+func DefaultHazelcastSpec() *HazelcastSpec {
+	return &HazelcastSpec{
+		ClusterSize:      n.DefaultClusterSize,
+		Repository:       n.HazelcastRepo,
+		Version:          n.HazelcastVersion,
+		LicenseKeySecret: n.LicenseKeySecret,
+	}
+}
+
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=3
 	// +optional
 	ClusterSize int32 `json:"clusterSize"`
