@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"fmt"
 
-	n "github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,15 +18,6 @@ const (
 	// Pending phase is the state of starting the cluster when not all the members are started yet
 	Pending Phase = "Pending"
 )
-
-func DefaultHazelcastSpec() *HazelcastSpec {
-	return &HazelcastSpec{
-		ClusterSize:      n.DefaultClusterSize,
-		Repository:       n.HazelcastRepo,
-		Version:          n.HazelcastVersion,
-		LicenseKeySecret: n.LicenseKeySecret,
-	}
-}
 
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {

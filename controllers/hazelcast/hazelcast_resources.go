@@ -555,3 +555,12 @@ func mergeHazelcastSpecs(target *hazelcastv1alpha1.HazelcastSpec, source *hazelc
 		target.ClusterSize = source.ClusterSize
 	}
 }
+
+func defaultHazelcastSpec() *hazelcastv1alpha1.HazelcastSpec {
+	return &hazelcastv1alpha1.HazelcastSpec{
+		ClusterSize:      n.DefaultClusterSize,
+		Repository:       n.HazelcastRepo,
+		Version:          n.HazelcastVersion,
+		LicenseKeySecret: n.LicenseKeySecret,
+	}
+}

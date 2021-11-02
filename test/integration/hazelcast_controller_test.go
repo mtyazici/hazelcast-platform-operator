@@ -412,6 +412,12 @@ var _ = Describe("Hazelcast controller", func() {
 		})
 	})
 	Context("Hazelcast CustomResource with default values", func() {
+		defaultHzSpecs := hazelcastv1alpha1.HazelcastSpec{
+			ClusterSize:      n.DefaultClusterSize,
+			Repository:       n.HazelcastRepo,
+			Version:          n.HazelcastVersion,
+			LicenseKeySecret: n.LicenseKeySecret,
+		}
 		It("should create CR with default values when empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
@@ -423,7 +429,7 @@ var _ = Describe("Hazelcast controller", func() {
 			fetchedCR := Fetch()
 			EnsureStatus(fetchedCR)
 
-			Expect(fetchedCR.Spec).To(Equal(*hazelcastv1alpha1.DefaultHazelcastSpec()))
+			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
 			Delete()
 		})
 	})
