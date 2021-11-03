@@ -62,7 +62,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err := r.Client.Get(ctx, req.NamespacedName, h)
-	mergeHazelcastSpecs(&h.Spec, defaultHazelcastSpec())
+	applyDefaultHazelcastSpecs(&h.Spec)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info("Hazelcast resource not found. Ignoring since object must be deleted")

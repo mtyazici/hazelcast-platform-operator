@@ -541,26 +541,17 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
-func mergeHazelcastSpecs(target *hazelcastv1alpha1.HazelcastSpec, source *hazelcastv1alpha1.HazelcastSpec) {
+func applyDefaultHazelcastSpecs(target *hazelcastv1alpha1.HazelcastSpec) {
 	if target.Repository == "" {
-		target.Repository = source.Repository
+		target.Repository = n.HazelcastRepo
 	}
 	if target.Version == "" {
-		target.Version = source.Version
+		target.Version = n.HazelcastVersion
 	}
 	if target.LicenseKeySecret == "" {
-		target.LicenseKeySecret = source.LicenseKeySecret
+		target.LicenseKeySecret = n.LicenseKeySecret
 	}
 	if target.ClusterSize == 0 {
-		target.ClusterSize = source.ClusterSize
-	}
-}
-
-func defaultHazelcastSpec() *hazelcastv1alpha1.HazelcastSpec {
-	return &hazelcastv1alpha1.HazelcastSpec{
-		ClusterSize:      n.DefaultClusterSize,
-		Repository:       n.HazelcastRepo,
-		Version:          n.HazelcastVersion,
-		LicenseKeySecret: n.LicenseKeySecret,
+		target.ClusterSize = n.DefaultClusterSize
 	}
 }
