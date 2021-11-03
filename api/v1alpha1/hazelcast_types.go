@@ -22,7 +22,7 @@ const (
 // HazelcastSpec defines the desired state of Hazelcast
 type HazelcastSpec struct {
 	// Number of Hazelcast members in the cluster.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=3
 	// +optional
 	ClusterSize int32 `json:"clusterSize"`

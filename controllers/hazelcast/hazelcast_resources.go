@@ -540,3 +540,18 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	}
 	return err
 }
+
+func applyDefaultHazelcastSpecs(target *hazelcastv1alpha1.HazelcastSpec) {
+	if target.Repository == "" {
+		target.Repository = n.HazelcastRepo
+	}
+	if target.Version == "" {
+		target.Version = n.HazelcastVersion
+	}
+	if target.LicenseKeySecret == "" {
+		target.LicenseKeySecret = n.LicenseKeySecret
+	}
+	if target.ClusterSize == 0 {
+		target.ClusterSize = n.DefaultClusterSize
+	}
+}

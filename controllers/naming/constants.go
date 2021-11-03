@@ -45,9 +45,9 @@ const (
 	// DefaultClusterSize default number of members of Hazelcast cluster
 	DefaultClusterSize = 3
 	// HazelcastRepo image repository for Hazelcast
-	HazelcastRepo = "hazelcast/hazelcast-enterprise"
+	HazelcastRepo = "hazelcast/hazelcast"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.0-BETA-1"
+	HazelcastVersion = "5.0"
 )
 
 // Management Center default configurations
@@ -55,5 +55,5 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.0-BETA-2"
+	MCVersion = "5.0"
 )
