@@ -3,9 +3,8 @@ package hazelcast
 import (
 	"testing"
 
-	"github.com/hazelcast/hazelcast-enterprise-operator/controllers/naming"
-
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
 func Test_mergeHazelcastSpecs(t *testing.T) {
@@ -22,39 +21,39 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			name: "Empty hazelcast repository",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{},
-				source: &hazelcastv1alpha1.HazelcastSpec{Repository: naming.HazelcastRepo},
+				source: &hazelcastv1alpha1.HazelcastSpec{Repository: n.HazelcastRepo},
 			},
-			want: hazelcastv1alpha1.HazelcastSpec{Repository: naming.HazelcastRepo},
+			want: hazelcastv1alpha1.HazelcastSpec{Repository: n.HazelcastRepo},
 		},
 		{
 			name: "Empty hazelcast version",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{},
-				source: &hazelcastv1alpha1.HazelcastSpec{Version: naming.HazelcastVersion},
+				source: &hazelcastv1alpha1.HazelcastSpec{Version: n.HazelcastVersion},
 			},
-			want: hazelcastv1alpha1.HazelcastSpec{Version: naming.HazelcastVersion},
+			want: hazelcastv1alpha1.HazelcastSpec{Version: n.HazelcastVersion},
 		},
 		{
 			name: "Empty license key secret",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{},
-				source: &hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: naming.LicenseKeySecret},
+				source: &hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: n.LicenseKeySecret},
 			},
-			want: hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: naming.LicenseKeySecret},
+			want: hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: n.LicenseKeySecret},
 		},
 		{
 			name: "Empty cluster size",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{},
-				source: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: naming.DefaultClusterSize},
+				source: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: n.DefaultClusterSize},
 			},
-			want: hazelcastv1alpha1.HazelcastSpec{ClusterSize: naming.DefaultClusterSize},
+			want: hazelcastv1alpha1.HazelcastSpec{ClusterSize: n.DefaultClusterSize},
 		},
 		{
 			name: "Non empty hazelcast repository",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{Repository: "myorg/hazelcast"},
-				source: &hazelcastv1alpha1.HazelcastSpec{Repository: naming.HazelcastRepo},
+				source: &hazelcastv1alpha1.HazelcastSpec{Repository: n.HazelcastRepo},
 			},
 			want: hazelcastv1alpha1.HazelcastSpec{Repository: "myorg/hazelcast"},
 		},
@@ -62,7 +61,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			name: "Non empty hazelcast version",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{Version: "4.2"},
-				source: &hazelcastv1alpha1.HazelcastSpec{Version: naming.HazelcastVersion},
+				source: &hazelcastv1alpha1.HazelcastSpec{Version: n.HazelcastVersion},
 			},
 			want: hazelcastv1alpha1.HazelcastSpec{Version: "4.2"},
 		},
@@ -70,7 +69,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			name: "Non empty license key secret",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: "license-key-secret"},
-				source: &hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: naming.LicenseKeySecret},
+				source: &hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: n.LicenseKeySecret},
 			},
 			want: hazelcastv1alpha1.HazelcastSpec{LicenseKeySecret: "license-key-secret"},
 		},
@@ -78,7 +77,7 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			name: "Non empty cluster size",
 			args: args{
 				target: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: 5},
-				source: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: naming.DefaultClusterSize},
+				source: &hazelcastv1alpha1.HazelcastSpec{ClusterSize: n.DefaultClusterSize},
 			},
 			want: hazelcastv1alpha1.HazelcastSpec{ClusterSize: 5},
 		},
