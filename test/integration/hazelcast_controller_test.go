@@ -439,10 +439,10 @@ var _ = Describe("Hazelcast controller", func() {
 					Namespace: lookupKey.Namespace,
 				},
 				Spec: hazelcastv1alpha1.HazelcastSpec{
-					ClusterSize:      3,
-					Repository:       repository,
-					Version:          version,
-					LicenseKeySecret: licenseKeySecret,
+					ClusterSize:      5,
+					Repository:       "myorg/hazelcast",
+					Version:          "1.0",
+					LicenseKeySecret: "licenseKeySecret",
 				},
 			}
 			Create(hz)
