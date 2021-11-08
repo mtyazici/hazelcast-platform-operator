@@ -1,7 +1,17 @@
 package hazelcast
 
 import (
+	"context"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/types"
+
+	v1 "k8s.io/api/rbac/v1"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
@@ -67,5 +77,26 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 				t.Errorf("HazelcastSpec = %v, want %v", *tt.target, tt.want)
 			}
 		})
+	}
+}
+
+func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
+	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
+		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
+		Build()
+	h := &hazelcastv1alpha1.Hazelcast{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hazelcast",
+			Namespace: "default",
+		},
+	}
+	r := HazelcastReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
+	}
+	r.hzClients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &HazelcastClient{})
+
+	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
+	if err != nil {
+		t.Errorf("Error while executing finilazer: %v.", err)
 	}
 }
