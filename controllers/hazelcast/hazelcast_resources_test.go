@@ -17,15 +17,6 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
-func reconcilerWithCR(h *hazelcastv1alpha1.Hazelcast) HazelcastReconciler {
-	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
-		Build()
-	return HazelcastReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
-	}
-}
-
 func Test_mergeHazelcastSpecs(t *testing.T) {
 	defaultHzSpec := hazelcastv1alpha1.HazelcastSpec{
 		ClusterSize:      n.DefaultClusterSize,
@@ -113,5 +104,14 @@ func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
 	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
 	if err != nil {
 		t.Errorf("Error while executing finilazer: %v.", err)
+	}
+}
+
+func reconcilerWithCR(h *hazelcastv1alpha1.Hazelcast) HazelcastReconciler {
+	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
+		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
+		Build()
+	return HazelcastReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
 	}
 }
