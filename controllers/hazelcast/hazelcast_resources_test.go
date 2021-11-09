@@ -17,6 +17,15 @@ import (
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 )
 
+func reconcilerWithCR(h *hazelcastv1alpha1.Hazelcast) HazelcastReconciler {
+	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
+		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
+		Build()
+	return HazelcastReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
+	}
+}
+
 func Test_mergeHazelcastSpecs(t *testing.T) {
 	defaultHzSpec := hazelcastv1alpha1.HazelcastSpec{
 		ClusterSize:      n.DefaultClusterSize,
@@ -70,16 +79,13 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 			want:   hazelcastv1alpha1.HazelcastSpec{ClusterSize: 5, LicenseKeySecret: n.LicenseKeySecret, Repository: n.HazelcastRepo, Version: n.HazelcastVersion},
 		},
 	}
-	scheme, _ := hazelcastv1alpha1.SchemeBuilder.Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}).Build()
 	h := &hazelcastv1alpha1.Hazelcast{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "hazelcast",
 			Namespace: "default",
 		},
 	}
-	r := HazelcastReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
-	}
+	r := reconcilerWithCR(h)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h.Spec = tt.target
@@ -95,18 +101,13 @@ func Test_mergeHazelcastSpecs(t *testing.T) {
 }
 
 func Test_clientShutdownWhenConnectionNotEstablished(t *testing.T) {
-	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
-		Register(&hazelcastv1alpha1.Hazelcast{}, &hazelcastv1alpha1.HazelcastList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
-		Build()
 	h := &hazelcastv1alpha1.Hazelcast{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "hazelcast",
 			Namespace: "default",
 		},
 	}
-	r := HazelcastReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(h).Build(),
-	}
+	r := reconcilerWithCR(h)
 	r.hzClients.Store(types.NamespacedName{Name: h.Name, Namespace: h.Namespace}, &HazelcastClient{})
 
 	err := r.executeFinalizer(context.Background(), h, ctrl.Log)
