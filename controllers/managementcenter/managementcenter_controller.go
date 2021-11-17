@@ -54,6 +54,12 @@ func (r *ManagementCenterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
+	err = r.applyDefaultMCSpecs(ctx, mc)
+	if err != nil {
+		logger.Error(err, "Failed to apply default specs")
+		return update(ctx, r.Client, mc, failedPhase(err))
+	}
+
 	err = r.reconcileRole(ctx, mc, logger)
 	if err != nil {
 		return update(ctx, r.Client, mc, failedPhase(err))

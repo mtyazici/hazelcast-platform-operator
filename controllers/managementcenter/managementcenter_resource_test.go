@@ -1,7 +1,15 @@
 package managementcenter
 
 import (
+	"context"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1 "k8s.io/api/rbac/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
@@ -62,4 +70,84 @@ func Test_clusterAddCommand(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_applyDefaultMCSpecs(t *testing.T) {
+	defaultMCSpec := hazelcastv1alpha1.ManagementCenterSpec{
+		Version:          n.MCVersion,
+		LicenseKeySecret: n.LicenseKeySecret,
+		Repository:       n.MCRepo,
+	}
+
+	tests := []struct {
+		name   string
+		target hazelcastv1alpha1.ManagementCenterSpec
+		want   hazelcastv1alpha1.ManagementCenterSpec
+	}{
+		{
+			name:   "Empty MC repository",
+			target: hazelcastv1alpha1.ManagementCenterSpec{Version: n.MCVersion, LicenseKeySecret: n.LicenseKeySecret},
+			want:   defaultMCSpec,
+		},
+		{
+			name:   "Empty MC version",
+			target: hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, LicenseKeySecret: n.LicenseKeySecret},
+			want:   defaultMCSpec,
+		},
+		{
+			name:   "Empty MC license key secret",
+			target: hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, Version: n.MCVersion},
+			want:   defaultMCSpec,
+		},
+
+		{
+			name:   "Non empty MC repository",
+			target: hazelcastv1alpha1.ManagementCenterSpec{Repository: "my-org/management-center"},
+			want:   hazelcastv1alpha1.ManagementCenterSpec{Version: n.MCVersion, LicenseKeySecret: n.LicenseKeySecret, Repository: "my-org/management-center"},
+		},
+		{
+			name:   "Non empty MC version",
+			target: hazelcastv1alpha1.ManagementCenterSpec{Version: "1.0"},
+			want:   hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, LicenseKeySecret: n.LicenseKeySecret, Version: "1.0"},
+		},
+		{
+			name:   "Non empty MC license key secret",
+			target: hazelcastv1alpha1.ManagementCenterSpec{LicenseKeySecret: "my-secret"},
+			want:   hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, Version: n.MCVersion, LicenseKeySecret: "my-secret"},
+		},
+	}
+	mc := &hazelcastv1alpha1.ManagementCenter{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managementcenter",
+			Namespace: "default",
+		},
+	}
+	r := reconcilerWithCR(mc)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mc.Spec = tt.target
+			err := r.applyDefaultMCSpecs(context.Background(), mc)
+			if err != nil {
+				t.Errorf("Unexpected error have occured: %v", err)
+			}
+			assertMCSpecEquals(t, mc.Spec, tt.want)
+		})
+	}
+}
+
+func reconcilerWithCR(mc *hazelcastv1alpha1.ManagementCenter) ManagementCenterReconciler {
+	scheme, _ := hazelcastv1alpha1.SchemeBuilder.
+		Register(&hazelcastv1alpha1.ManagementCenter{}, &hazelcastv1alpha1.ManagementCenterList{}, &v1.ClusterRole{}, &v1.ClusterRoleBinding{}).
+		Build()
+	return ManagementCenterReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(mc).Build(),
+	}
+}
+
+func assertMCSpecEquals(t *testing.T, actual hazelcastv1alpha1.ManagementCenterSpec, expected hazelcastv1alpha1.ManagementCenterSpec) {
+	if actual.Repository != expected.Repository ||
+		actual.Version != expected.Version ||
+		actual.LicenseKeySecret != expected.LicenseKeySecret {
+		t.Errorf("ManagementCenterSpec = %v, want %v", actual, expected)
+	}
 }
