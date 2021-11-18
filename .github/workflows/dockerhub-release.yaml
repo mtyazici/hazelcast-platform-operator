@@ -18,6 +18,7 @@ jobs:
           IMAGE_REPOSITORY=hazelcast/hazelcast-platform-operator
           IMAGE_VERSION=${GITHUB_REF:11}
 
+          echo "IMAGE_VERSION=${IMAGE_VERSION}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_REPOSITORY}:${IMAGE_VERSION}" >> $GITHUB_ENV
 
       - name: Set up Golang
@@ -34,7 +35,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Operator Image
-        run: make docker-build IMG="${IMAGE_NAME}"
+        run: make docker-build IMG="${IMAGE_NAME}" VERSION="${IMAGE_VERSION}"
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
