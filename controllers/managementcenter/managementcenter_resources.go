@@ -369,10 +369,6 @@ func (r *ManagementCenterReconciler) applyDefaultMCSpecs(ctx context.Context, mc
 		mc.Spec.Version = n.MCVersion
 		changed = true
 	}
-	if mc.Spec.LicenseKeySecret == "" {
-		mc.Spec.LicenseKeySecret = n.LicenseKeySecret
-		changed = true
-	}
 	if !changed {
 		return nil
 	}

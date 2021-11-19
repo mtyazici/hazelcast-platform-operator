@@ -130,9 +130,6 @@ var _ = Describe("ManagementCenter controller", func() {
 				},
 				Spec: hazelcastv1alpha1.ManagementCenterSpec{
 					HazelcastClusters: []hazelcastv1alpha1.HazelcastClusterConfig{},
-					Persistence: hazelcastv1alpha1.PersistenceConfiguration{
-						StorageClass: &[]string{""}[0],
-					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
@@ -149,7 +146,6 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			Expect(fetchedCR.Spec.Repository).Should(Equal(n.MCRepo))
 			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
-			Expect(fetchedCR.Spec.LicenseKeySecret).Should(Equal(n.LicenseKeySecret))
 		})
 	})
 })

@@ -94,11 +94,6 @@ func Test_applyDefaultMCSpecs(t *testing.T) {
 			target: hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, LicenseKeySecret: n.LicenseKeySecret},
 			want:   defaultMCSpec,
 		},
-		{
-			name:   "Empty MC license key secret",
-			target: hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, Version: n.MCVersion},
-			want:   defaultMCSpec,
-		},
 
 		{
 			name:   "Non empty MC repository",
@@ -109,11 +104,6 @@ func Test_applyDefaultMCSpecs(t *testing.T) {
 			name:   "Non empty MC version",
 			target: hazelcastv1alpha1.ManagementCenterSpec{Version: "1.0"},
 			want:   hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, LicenseKeySecret: n.LicenseKeySecret, Version: "1.0"},
-		},
-		{
-			name:   "Non empty MC license key secret",
-			target: hazelcastv1alpha1.ManagementCenterSpec{LicenseKeySecret: "my-secret"},
-			want:   hazelcastv1alpha1.ManagementCenterSpec{Repository: n.MCRepo, Version: n.MCVersion, LicenseKeySecret: "my-secret"},
 		},
 	}
 	mc := &hazelcastv1alpha1.ManagementCenter{
@@ -145,9 +135,7 @@ func reconcilerWithCR(mc *hazelcastv1alpha1.ManagementCenter) ManagementCenterRe
 }
 
 func assertMCSpecEquals(t *testing.T, actual hazelcastv1alpha1.ManagementCenterSpec, expected hazelcastv1alpha1.ManagementCenterSpec) {
-	if actual.Repository != expected.Repository ||
-		actual.Version != expected.Version ||
-		actual.LicenseKeySecret != expected.LicenseKeySecret {
+	if actual.Repository != expected.Repository || actual.Version != expected.Version {
 		t.Errorf("ManagementCenterSpec = %v, want %v", actual, expected)
 	}
 }
