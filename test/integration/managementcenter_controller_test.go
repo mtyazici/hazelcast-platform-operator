@@ -49,7 +49,6 @@ var _ = Describe("ManagementCenter controller", func() {
 
 			By("Creating the CR with specs successfully")
 			Expect(k8sClient.Create(context.Background(), toCreate)).Should(Succeed())
-			time.Sleep(time.Second * 5)
 
 			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
 			Eventually(func() bool {
@@ -133,18 +132,15 @@ var _ = Describe("ManagementCenter controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), mc)).Should(Succeed())
-			time.Sleep(2 * time.Second)
 
 			fetchedCR := &hazelcastv1alpha1.ManagementCenter{}
-			Eventually(func() bool {
+			Eventually(func() string {
 				err := k8sClient.Get(context.Background(), lookupKey, fetchedCR)
 				if err != nil {
-					return false
+					return ""
 				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			Expect(fetchedCR.Spec.Repository).Should(Equal(n.MCRepo))
+				return fetchedCR.Spec.Repository
+			}, timeout, interval).Should(Equal(n.MCRepo))
 			Expect(fetchedCR.Spec.Version).Should(Equal(n.MCVersion))
 		})
 	})
