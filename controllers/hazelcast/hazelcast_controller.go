@@ -6,22 +6,24 @@ import (
 	"sync"
 	"time"
 
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 // retryAfter is the time in seconds to requeue for the Pending phase
@@ -54,7 +56,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme)
 // ClusterRole inherited from Hazelcast ClusterRole
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
@@ -147,8 +149,12 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return update(ctx, r.Client, h, failedPhase(err))
 		}
 	}
-	if !util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize) {
-		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	if ok, err := util.CheckIfRunning(ctx, r.Client, req.NamespacedName, h.Spec.ClusterSize); !ok {
+		if err == nil {
+			return update(ctx, r.Client, h, pendingPhase(retryAfter))
+		} else {
+			return update(ctx, r.Client, h, failedPhase(err).withMessage(err.Error()))
+		}
 	}
 
 	r.createHazelcastClient(ctx, req, h)
@@ -180,6 +186,39 @@ func (r *HazelcastReconciler) createHazelcastClient(ctx context.Context, req ctr
 	r.hzClients.Store(req.NamespacedName, c)
 }
 
+func (r *HazelcastReconciler) podFailedUpdates(pod client.Object) []reconcile.Request {
+	p, ok := pod.(*corev1.Pod)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if p.Status.Phase == corev1.PodRunning {
+		return []reconcile.Request{}
+	}
+
+	name, ok := getHazelcastCRName(p)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name:      name,
+				Namespace: p.GetNamespace(),
+			},
+		},
+	}
+}
+
+func getHazelcastCRName(pod *corev1.Pod) (string, bool) {
+	if pod.Labels[n.ApplicationManagedByLabel] == n.OperatorName && pod.Labels[n.ApplicationNameLabel] == n.Hazelcast {
+		return pod.Labels[n.ApplicationInstanceNameLabel], true
+	} else {
+		return "", false
+	}
+}
+
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
@@ -189,5 +228,6 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Channel{Source: r.triggerReconcileChan}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(r.podFailedUpdates)).
 		Complete(r)
 }

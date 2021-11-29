@@ -75,6 +75,12 @@ var _ = Describe("Hazelcast", func() {
 		})
 	}
 
+	createWithoutCheck := func(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
+		By("Creating Hazelcast CR", func() {
+			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
+		})
+	}
+
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
@@ -186,6 +192,23 @@ var _ = Describe("Hazelcast", func() {
 				Expect(err).ToNot(HaveOccurred())
 				evaluateReadyMembers(h)
 			})
+		})
+	})
+
+	Describe("External API errors", func() {
+		assertStatusAndMessageEventually := func(phase hazelcastcomv1alpha1.Phase) {
+			hz := &hazelcastcomv1alpha1.Hazelcast{}
+			Eventually(func() hazelcastcomv1alpha1.Phase {
+				err := k8sClient.Get(context.Background(), lookupKey, hz)
+				Expect(err).ToNot(HaveOccurred())
+				return hz.Status.Phase
+			}, timeout, interval).Should(Equal(phase))
+			Expect(hz.Status.Message).Should(Not(BeEmpty()))
+		}
+
+		It("should be reflected to Hazelcast CR status", func() {
+			createWithoutCheck(hazelcastconfig.Faulty(hzNamespace, ee))
+			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 })
