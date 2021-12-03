@@ -6,6 +6,7 @@ on:
 
 env:
   IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+  
 jobs:
   gke-e2e-tests:
     name: Run e2e tests at GKE
@@ -118,23 +119,11 @@ jobs:
         run: |
           NAMESPACE=oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
           echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
+
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project $NAMESPACE
-          oc create secret docker-registry pull-secret \
-          --docker-server=$SCAN_REGISTRY \
-          --docker-username=unused \
-          --docker-password=$RHEL_REPO_PASSWORD \
-          --docker-email=unused
-          cat <<EOF | oc apply -f -
-          apiVersion: v1
-          kind: ServiceAccount
-          metadata:
-            name: hazelcast-platform-controller-manager
-            namespace: $NAMESPACE
-          EOF
 
-          oc secrets link hazelcast-platform-controller-manager pull-secret --for=pull
-          make deploy IMG=$RHEL_IMAGE NAMESPACE=$NAMESPACE
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE
           oc rollout status deployment hazelcast-platform-controller-manager
 
       - name: Create secret
@@ -153,12 +142,29 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
-        if: ${{ always() || failure() }}
+        if: always() || failure() 
         run: |
-          make undeploy
+          DEPLOY_NAME=hazelcast-platform-controller-manager
+          hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
+          mc=$(oc get managementcenter -o name); [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
+          if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
+            i=0
+            while ! oc rollout status deployment $DEPLOY_NAME; do
+              oc rollout restart deployment $DEPLOY_NAME
+              if [[ $i == 2 ]]; then echo "Failure testing the operator, namespace $NAMESPACE requires manual clean up"; exit 1; fi
+              ((i++))
+            done
+          fi
+          sleep 10
 
-          oc delete secret pull-secret --wait=false
-          oc delete project $NAMESPACE --wait=false
-          if [[ matrix.edition == 'ee' ]]; then
+          hz=$(oc get hazelcast -o name)
+          mc=$(oc get managementcenter -o name)
+          if [[ $hz != "" ]] || [[ $mc != "" ]]; then
+            echo "Failure deleting hazelcast and managementcenter resources, namespace $NAMESPACE requires manual clean up"; exit 1
+          fi
+
+          if [[ ${{ matrix.edition }} == 'ee' ]]; then
             oc delete secret hazelcast-license-key --wait=false
           fi
+          make undeploy-keep-crd
+          oc delete project $NAMESPACE --wait=false  
