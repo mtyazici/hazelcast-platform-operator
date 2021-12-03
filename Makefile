@@ -147,6 +147,8 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+undeploy-keep-crd: yq ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/default | $(YQ) eval '. | select(.kind != "CustomResourceDefinition")' - | kubectl delete -f -
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -240,14 +242,10 @@ expose-local: ## Port forward hazelcast Pod so that it's accessible from localho
 	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
-OS_NAME = $(shell uname -s)
+OS_NAME = $(shell uname -s | tr A-Z a-z)
 
 OPERATOR_SDK_VERSION ?= v1.13.1
-ifeq ($(OS_NAME), Linux)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64
-else ifeq ($(OS_NAME), Darwin)
-    OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_darwin_amd64
-endif
+OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS_NAME)_amd64
 
 OPERATOR_SDK=${shell pwd}/bin/operator-sdk
 .PHONY: operator-sdk
@@ -260,3 +258,13 @@ print-bundle-version:
 $(OPERATOR_SDK):
 	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
 	chmod +x $(OPERATOR_SDK)
+
+YQ=${shell pwd}/bin/yq
+YQ_VERSION=v4.15.1
+YQ_URL=https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS_NAME)_amd64
+.PHONY: yq
+yq: $(YQ)
+
+$(YQ):
+	curl -sSL $(YQ_URL) -o $(YQ) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
+	chmod +x $(YQ)
