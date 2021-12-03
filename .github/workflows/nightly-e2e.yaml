@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: "0 9 * * *"
 
+env:
+  IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
 jobs:
   gke-e2e-tests:
     name: Run e2e tests at GKE
@@ -17,7 +19,6 @@ jobs:
       GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
@@ -55,17 +56,6 @@ jobs:
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --network=${{ env.GCP_NETWORK }} --machine-type=n1-standard-2 --num-nodes=2
           sleep 30
-
-      - name: Connect to the GKE cluster
-        run: gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Login to GCR
-        run: gcloud auth configure-docker -q
-
-      - name: Build Operator Image and Push to GCR
-        run: |
-          make docker-build-ci IMG=${{ env.IMG }}
-          make docker-push IMG=${{ env.IMG }}
 
       - name: Deploy Operator to GKE
         run: |
@@ -106,15 +96,8 @@ jobs:
       OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
       OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
       OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
-      SCAN_REGISTRY: "scan.connect.redhat.com"
-      RHEL_REPO_PASSWORD: ${{ secrets.RHEL_REPO_PASSWORD }}
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
-      RHEL_IMAGE: hazelcast/hazelcast-platform-operator:5-preview-snapshot
-
     steps:
-      - name: Set Release Version
-        run: echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
-
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v2
 
