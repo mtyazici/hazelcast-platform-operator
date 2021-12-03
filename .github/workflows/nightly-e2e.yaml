@@ -6,7 +6,7 @@ on:
 
 env:
   IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
-  
+
 jobs:
   gke-e2e-tests:
     name: Run e2e tests at GKE
@@ -98,6 +98,8 @@ jobs:
       OCP_USERNAME: ${{ secrets.OCP_USERNAME }}
       OCP_PASSWORD: ${{ secrets.OCP_PASSWORD }}
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
+      NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout to hazelcast-operator
         uses: actions/checkout@v2
@@ -117,14 +119,11 @@ jobs:
 
       - name: Deploy Hazelcast-Platform-Operator to OCP
         run: |
-          NAMESPACE=oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
-          echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
-
           oc login ${OCP_CLUSTER_URL} -u=${OCP_USERNAME} -p=${OCP_PASSWORD} --insecure-skip-tls-verify
           oc new-project $NAMESPACE
 
-          make deploy IMG=$IMG NAMESPACE=$NAMESPACE
-          oc rollout status deployment hazelcast-platform-controller-manager
+          make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          oc rollout status deployment ${NAME_PREFIX}controller-manager
 
       - name: Create secret
         if: matrix.edition == 'ee'
@@ -144,7 +143,7 @@ jobs:
       - name: Clean up after Tests
         if: always() || failure() 
         run: |
-          DEPLOY_NAME=hazelcast-platform-controller-manager
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
           hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
           mc=$(oc get managementcenter -o name); [[ "$mc" != "" ]] && oc delete $mc --wait=false || echo "no managementcenter resources"
           if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then

@@ -139,6 +139,9 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+ifneq (,$(NAME_PREFIX))
+	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+endif
 	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
