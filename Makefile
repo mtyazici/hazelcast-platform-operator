@@ -266,5 +266,5 @@ YQ_URL=https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS_N
 yq: $(YQ)
 
 $(YQ):
-	curl -sSL $(YQ_URL) -o $(YQ) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
+	curl -sSL $(YQ_URL) -o $(YQ) --create-dirs || (echo "curl returned $$? trying to fetch yq."; exit 1)
 	chmod +x $(YQ)
