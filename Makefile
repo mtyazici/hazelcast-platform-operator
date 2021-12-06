@@ -151,7 +151,8 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 undeploy-keep-crd: yq ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(YQ) eval '. | select(.kind != "CustomResourceDefinition")' - | kubectl delete -f -
+	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -261,13 +262,3 @@ print-bundle-version:
 $(OPERATOR_SDK):
 	curl -sSL $(OPERATOR_SDK_URL) -o $(OPERATOR_SDK) --create-dirs || (echo "curl returned $$? trying to fetch operator-sdk."; exit 1)
 	chmod +x $(OPERATOR_SDK)
-
-YQ=${shell pwd}/bin/yq
-YQ_VERSION=v4.15.1
-YQ_URL=https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS_NAME)_amd64
-.PHONY: yq
-yq: $(YQ)
-
-$(YQ):
-	curl -sSL $(YQ_URL) -o $(YQ) --create-dirs || (echo "curl returned $$? trying to fetch yq."; exit 1)
-	chmod +x $(YQ)
