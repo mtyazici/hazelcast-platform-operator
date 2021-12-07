@@ -153,9 +153,26 @@ endif
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
 
-undeploy-keep-crd: 
+undeploy-keep-crd:
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+clean-up-namespace: ## Clean up all the resources that were created by the operator for a specific kubernetes namespace
+	$(eval mc := $(shell $(KUBECTL) get managementcenter -n $(NAMESPACE) -o name))
+	$(eval hz := $(shell $(KUBECTL) get hazelcast -n $(NAMESPACE) -o name))
+	[[ "$(hz)" != "" ]] && $(KUBECTL) delete $(hz) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no hazelcast resources"
+	[[ "$(mc)" != "" ]] && $(KUBECTL) delete $(mc) -n $(NAMESPACE) --wait=true --timeout=1m || echo "no managementcenter resources"
+	$(KUBECTL) delete secret hazelcast-license-key -n $(NAMESPACE) --wait=false || echo "no hazelcast-license-key secret found"
+	$(KUBECTL) delete pvc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=1m
+	$(KUBECTL) delete svc -l app.kubernetes.io/managed-by=hazelcast-platform-operator -n $(NAMESPACE) --wait=true --timeout=4m
+	$(MAKE) undeploy-keep-crd
+	@if [[ -n "$($(KUBECTL) get hazelcast -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch $(hz) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
+	@if [[ -n "$($(KUBECTL) get managementcenter -n $(NAMESPACE) -o name)" ]]; then \
+		$(KUBECTL) patch $(mc) -p '{"metadata":{"finalizers":null}}' --type=merge; \
+	fi
+	$(KUBECTL) delete namespace $(NAMESPACE) --wait=true --timeout 1m
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -185,7 +202,7 @@ bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metada
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i  "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
-	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml 
+	sed -i  "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
 .PHONY: bundle-build
