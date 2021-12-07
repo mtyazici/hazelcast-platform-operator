@@ -61,7 +61,6 @@ jobs:
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
-          make install
           make deploy NAMESPACE=${{ env.NAMESPACE }} IMG=${{ env.IMG }}
 
       - name: Create secret
@@ -137,7 +136,7 @@ jobs:
             ee) GO_TEST_FLAGS=-ee=true;;
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
