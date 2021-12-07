@@ -140,7 +140,7 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Clean up after Tests
-        if: always() || failure() 
+        if: always()
         run: |
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           hz=$(oc get hazelcast -o name); [[ "$hz" != "" ]] && oc delete $hz --wait=false || echo "no hazelcast resources"
