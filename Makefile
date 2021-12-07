@@ -150,7 +150,7 @@ endif
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-undeploy-keep-crd: yq ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy-keep-crd: 
 	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
