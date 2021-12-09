@@ -20,10 +20,6 @@ jobs:
       GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
-<<<<<<< HEAD
-=======
-      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}-${{github.run_number}}
->>>>>>> upstream/main
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
