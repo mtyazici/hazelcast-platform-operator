@@ -50,6 +50,9 @@ CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Default namespace
 NAMESPACE ?= default
 
+# Path to the kubectl command, if it is not in $PATH
+KUBECTL ?= kubectl
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -133,19 +136,19 @@ docker-push: ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -235,11 +238,11 @@ generate-bundle-yaml: manifests kustomize ## Generate one file deployment bundle
 STS_NAME ?= hazelcast
 expose-local: ## Port forward hazelcast Pod so that it's accessible from localhost
 	while [ true ] ; do \
-		kubectl get sts $(STS_NAME) &> /dev/null && break ; \
+		$(KUBECTL) get sts $(STS_NAME) &> /dev/null && break ; \
 		sleep 5 ; \
 	done;
-	kubectl wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
-	kubectl port-forward statefulset/$(STS_NAME) 8000:5701
+	$(KUBECTL) wait --for=condition=ready pod $(STS_NAME)-0 --timeout=15m
+	$(KUBECTL) port-forward statefulset/$(STS_NAME) 8000:5701
 
 # Detect the OS to set per-OS defaults
 OS_NAME = $(shell uname -s | tr A-Z a-z)
