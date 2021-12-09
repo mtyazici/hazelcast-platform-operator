@@ -20,6 +20,10 @@ jobs:
       GCP_NETWORK: operator-test-network
       GKE_ZONE: europe-west1-b
       KUBECTL_VERSION: 1.22.0
+<<<<<<< HEAD
+=======
+      IMG: eu.gcr.io/hazelcast-33/hazelcast-platform-operator:${{github.sha}}-${{github.run_number}}
+>>>>>>> upstream/main
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
     steps:
       - name: Checkout
@@ -57,6 +61,9 @@ jobs:
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           gcloud container clusters create ${CLUSTER_NAME} --zone=${{ env.GKE_ZONE }} --project=${{ env.GCP_PROJECT_ID }} --network=${{ env.GCP_NETWORK }} --machine-type=n1-standard-2 --num-nodes=2
           sleep 30
+
+      - name: Connect to the GKE cluster
+        run: gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --project ${{ env.GCP_PROJECT_ID }}
 
       - name: Deploy Operator to GKE
         run: |
