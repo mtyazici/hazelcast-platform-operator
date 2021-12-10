@@ -114,7 +114,7 @@ test-it: manifests generate fmt vet ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test -v ./test/integration/... -coverprofile cover.out $(GO_TEST_FLAGS)
 
 test-e2e: generate fmt vet ## Run end-to-end tests
-	USE_EXISTING_CLUSTER=true go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 20m -delete-timeout 15m $(GO_TEST_FLAGS)
+	USE_EXISTING_CLUSTER=true NAME_PREFIX=$(NAME_PREFIX) go test -v ./test/e2e -coverprofile cover.out -namespace $(NAMESPACE) -timeout 30m -delete-timeout 20m $(GO_TEST_FLAGS)
 
 ##@ Build
 
@@ -142,6 +142,9 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+ifneq (,$(NAME_PREFIX))
+	cd config/default && $(KUSTOMIZE) edit set nameprefix $(NAME_PREFIX)
+endif
 	cd config/default && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/rbac && $(KUSTOMIZE) edit set namespace $(NAMESPACE)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
@@ -150,6 +153,9 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
 
+undeploy-keep-crd: 
+	cd config/default && $(KUSTOMIZE) edit remove resource ../crd
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

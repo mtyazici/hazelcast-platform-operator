@@ -20,6 +20,14 @@ func runningLocally() bool {
 	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
 }
 
+func controllerManagerName() string {
+	np := os.Getenv("NAME_PREFIX")
+	if np == "" {
+		return "hazelcast-platform-controller-manager"
+	}
+
+	return np + "controller-manager"
+}
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
 	err := k8sClient.Get(ctx, name, deploy)
 	if err != nil {
