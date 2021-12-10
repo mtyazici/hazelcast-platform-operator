@@ -89,11 +89,12 @@ jobs:
       - name: Deploy Operator to GKE
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
+          kubectl config set-context --current --namespace=$NAMESPACE
+
           DEPLOY_NAME=${NAME_PREFIX}controller-manager
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
           
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
-          sleep 5
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
