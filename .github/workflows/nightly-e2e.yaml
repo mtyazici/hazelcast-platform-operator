@@ -136,7 +136,7 @@ jobs:
             kubectl delete secret hazelcast-license-key --wait=false
           fi
           make undeploy-keep-crd
-          kubectl delete project $NAMESPACE --wait=false
+          kubectl delete namespace $NAMESPACE --wait=false
 
   delete-cluster:
     name: Run E2E tests
