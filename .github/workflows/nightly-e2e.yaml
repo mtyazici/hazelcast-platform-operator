@@ -93,6 +93,7 @@ jobs:
           echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
           
           make deploy IMG=$IMG NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
+          sleep 5
           kubectl rollout status deployment $DEPLOY_NAME
 
       - name: Create secret
@@ -100,6 +101,7 @@ jobs:
         run: kubectl create secret generic hazelcast-license-key --namespace ${{ env.NAMESPACE }} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests at GKE
+        id: e2e-test
         run: |
           case ${{ matrix.edition }} in
             os) GO_TEST_FLAGS=-ee=false;;
@@ -111,7 +113,6 @@ jobs:
       - name: Clean up after Tests
         if: always()
         run: |
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
           hz=$(kubectl get hazelcast -o name); [[ "$hz" != "" ]] && kubectl delete $hz --wait=false || echo "no hazelcast resources"
           mc=$(kubectl get managementcenter -o name); [[ "$mc" != "" ]] && kubectl delete $mc --wait=false || echo "no managementcenter resources"
           if [[ ${{ steps.e2e-test.outcome }} != 'success' ]]; then
@@ -142,7 +143,7 @@ jobs:
     if: always()
     needs: [create-gke-cluster, gke-e2e-tests]
     env:
-      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTERNAME }}
+      CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
