@@ -23,6 +23,7 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
@@ -36,14 +37,16 @@ type HazelcastReconciler struct {
 	Scheme               *runtime.Scheme
 	hzClients            sync.Map
 	triggerReconcileChan chan event.GenericEvent
+	metrics              *phonehome.Metrics
 }
 
-func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme) *HazelcastReconciler {
+func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme, m *phonehome.Metrics) *HazelcastReconciler {
 	return &HazelcastReconciler{
 		Client:               c,
 		Log:                  log,
 		Scheme:               s,
 		triggerReconcileChan: make(chan event.GenericEvent),
+		metrics:              m,
 	}
 }
 
@@ -158,6 +161,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	r.createHazelcastClient(ctx, req, h)
+
+	r.metrics.CreatedClusters[h.ObjectMeta.UID] = true
 
 	err = r.updateLastSuccessfulConfiguration(ctx, h, logger)
 	if err != nil {

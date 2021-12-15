@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/phonehome"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
@@ -28,7 +30,8 @@ var (
 )
 
 const (
-	WatchNamespaceEnv = "WATCH_NAMESPACE"
+	WatchNamespaceEnv   = "WATCH_NAMESPACE"
+	PhoneHomeEnabledEnv = "PHONE_HOME_ENABLED"
 )
 
 func init() {
@@ -80,10 +83,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	metrics := &phonehome.Metrics{
+		CreatedClusters: make(map[types.UID]bool),
+	}
+
 	if err = hazelcast.NewHazelcastReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Hazelcast"),
 		mgr.GetScheme(),
+		metrics,
 	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Hazelcast")
 		os.Exit(1)
@@ -105,6 +113,11 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	phEnabled, found := os.LookupEnv(PhoneHomeEnabledEnv)
+	if !found || phEnabled == "true" {
+		phonehome.Start(metrics)
 	}
 
 	setupLog.Info("starting manager")
