@@ -43,7 +43,7 @@ jobs:
         edition: [ 'os', 'ee' ]
     env:
       NAMESPACE: test-operator-nightly-${{ matrix.edition }}
-      IMG: hazelcast/hazelcast-platform-operator:5-preview-snapshot
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout
