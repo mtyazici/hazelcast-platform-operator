@@ -67,4 +67,4 @@ jobs:
       - name: Clean up after Tests
         if: always()
         run: |
-          make clean-up-namespace NAMESPACE=${NAMESPACE}
+          make clean-up-namespace KUBECTL=oc NAMESPACE=${NAMESPACE}
