@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 5.0
+VERSION ?= latest-snapshot
 
 BUNDLE_VERSION := $(VERSION)
 VERSION_PARTS := $(subst ., ,$(VERSION))
@@ -44,7 +44,7 @@ IMAGE_TAG_BASE ?= hazelcast.com/hazelcast-platform-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= hazelcast/hazelcast-platform-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Default namespace

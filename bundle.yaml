@@ -426,7 +426,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: hazelcast/hazelcast-platform-operator:5.0
+        image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
