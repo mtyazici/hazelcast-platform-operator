@@ -1,5 +1,12 @@
 name: Pull Request
 on:
+  pull_request_target:
+    types:
+      - labeled
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
   pull_request:
     branches:
       - main
@@ -14,10 +21,24 @@ env:
 jobs:
   linter:
     name: Run linters
+    if: >-
+      (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name,'safe-to-test') && github.event.pull_request.head.repo.full_name != github.repository) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-20.04
     steps:
+      - name: Decide which ref to checkout
+        id: decide-ref
+        run: |
+          if [[ "${{github.event_name}}" == "pull_request" ]]; then
+            echo "::set-output name=ref::${{github.ref}}"
+          else
+            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -42,8 +63,19 @@ jobs:
     runs-on: ubuntu-20.04
     needs: linter
     steps:
+      - name: Decide which ref to checkout
+        id: decide-ref
+        run: |
+          if [[ "${{github.event_name}}" == "pull_request" ]]; then
+            echo "::set-output name=ref::${{github.ref}}"
+          else
+            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -75,8 +107,19 @@ jobs:
     env:
       GCP_NETWORK: operator-test-network
     steps:
+      - name: Decide which ref to checkout
+        id: decide-ref
+        run: |
+          if [[ "${{github.event_name}}" == "pull_request" ]]; then
+            echo "::set-output name=ref::${{github.ref}}"
+          else
+            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
 
       - name: Set up Golang
         uses: actions/setup-go@v2
@@ -133,8 +176,19 @@ jobs:
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
       KUBECTL_VERSION: 1.22.0
     steps:
+      - name: Decide which ref to checkout
+        id: decide-ref
+        run: |
+          if [[ "${{github.event_name}}" == "pull_request" ]]; then
+            echo "::set-output name=ref::${{github.ref}}"
+          else
+            echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{steps.decide-ref.outputs.ref}}
 
       - name: Set up Golang
         uses: actions/setup-go@v2
