@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -20,7 +22,6 @@ import (
 
 var _ = Describe("Hazelcast controller", func() {
 	const (
-		hzKeyName = "hazelcast-test"
 		namespace = "default"
 		finalizer = n.Finalizer
 
@@ -34,19 +35,19 @@ var _ = Describe("Hazelcast controller", func() {
 		repository = n.HazelcastEERepo
 	}
 
-	lookupKey := types.NamespacedName{
-		Name:      hzKeyName,
-		Namespace: namespace,
+	labelFilter := func(hz *hazelcastv1alpha1.Hazelcast) client.MatchingLabels {
+		return map[string]string{
+			n.ApplicationNameLabel:         n.Hazelcast,
+			n.ApplicationManagedByLabel:    n.OperatorName,
+			n.ApplicationInstanceNameLabel: hz.Name,
+		}
 	}
 
-	clusterScopedLookupKey := types.NamespacedName{
-		Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hzKeyName, Namespace: namespace}}).ClusterScopedName(),
-		Namespace: "",
-	}
-
-	labelFilter := client.MatchingLabels{
-		n.ApplicationNameLabel:      n.Hazelcast,
-		n.ApplicationManagedByLabel: n.OperatorName,
+	clusterScopedLookupKey := func(hz *hazelcastv1alpha1.Hazelcast) types.NamespacedName {
+		return types.NamespacedName{
+			Name:      (&hazelcastv1alpha1.Hazelcast{ObjectMeta: metav1.ObjectMeta{Name: hz.Name, Namespace: namespace}}).ClusterScopedName(),
+			Namespace: "",
+		}
 	}
 
 	defaultSpecValues := &test.HazelcastSpecValues{
@@ -56,9 +57,25 @@ var _ = Describe("Hazelcast controller", func() {
 		LicenseKey:  licenseKeySecret,
 	}
 
+	GetRandomObjectMeta := func() metav1.ObjectMeta {
+		return metav1.ObjectMeta{
+			Name:      fmt.Sprintf("hazelcast-test-%s", uuid.NewUUID()),
+			Namespace: namespace,
+		}
+	}
+
 	Create := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("creating the CR with specs successfully")
 		Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
+	}
+
+	type Mutator = func(*hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast
+
+	Fetch := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
+		By("fetching Hazelcast")
+		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
+		assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
+		return fetchedCR
 	}
 
 	Update := func(hz *hazelcastv1alpha1.Hazelcast) {
@@ -66,55 +83,60 @@ var _ = Describe("Hazelcast controller", func() {
 		Expect(k8sClient.Update(context.Background(), hz)).Should(Succeed())
 	}
 
-	Fetch := func() *hazelcastv1alpha1.Hazelcast {
-		By("fetching Hazelcast")
-		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		assertExists(lookupKey, fetchedCR)
-		return fetchedCR
-	}
-
-	Delete := func() {
+	Delete := func(hz *hazelcastv1alpha1.Hazelcast) {
 		By("expecting to delete CR successfully")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-		deleteIfExists(lookupKey, fetchedCR)
+		deleteIfExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
 		By("expecting to CR delete finish")
-		assertDoesNotExist(lookupKey, fetchedCR)
+		assertDoesNotExist(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedCR)
 	}
 
 	EnsureStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring that the status is correct")
 		Eventually(func() hazelcastv1alpha1.Phase {
-			hz = Fetch()
+			hz = Fetch(hz)
 			return hz.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Pending))
 		return hz
-
 	}
 
 	EnsureFailedStatus := func(hz *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
 		By("ensuring that the status is failed")
 		Eventually(func() hazelcastv1alpha1.Phase {
-			hz = Fetch()
+			hz = Fetch(hz)
 			return hz.Status.Phase
 		}, timeout, interval).Should(Equal(hazelcastv1alpha1.Failed))
 		return hz
 	}
 
+	EnsureSpecEquals := func(hz *hazelcastv1alpha1.Hazelcast, other *hazelcastv1alpha1.HazelcastSpec) *hazelcastv1alpha1.Hazelcast {
+		By("ensuring spec is defaulted")
+		Eventually(func() *hazelcastv1alpha1.HazelcastSpec {
+			hz = Fetch(hz)
+			return &hz.Spec
+		}, timeout, interval).Should(Equal(other))
+		return hz
+	}
+
+	GetStatefulSet := func(hz *hazelcastv1alpha1.Hazelcast) *v1.StatefulSet {
+		By("fetching statefulset")
+		sts := &v1.StatefulSet{}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, sts)
+		}, timeout, interval).Should(Succeed())
+
+		return sts
+	}
+
 	Context("Hazelcast CustomResource with default specs", func() {
 		It("should handle CR and sub resources correctly", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: test.HazelcastSpec(defaultSpecValues, ee),
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       test.HazelcastSpec(defaultSpecValues, ee),
 			}
 
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-
 			Create(hz)
-
-			fetchedCR = EnsureStatus(fetchedCR)
+			fetchedCR := EnsureStatus(hz)
 			test.CheckHazelcastCR(fetchedCR, defaultSpecValues, ee)
 
 			By("ensuring the finalizer added successfully")
@@ -131,37 +153,37 @@ var _ = Describe("Hazelcast controller", func() {
 			}
 
 			fetchedClusterRole := &rbacv1.ClusterRole{}
-			assertExists(clusterScopedLookupKey, fetchedClusterRole)
+			assertExists(clusterScopedLookupKey(hz), fetchedClusterRole)
 
 			fetchedServiceAccount := &corev1.ServiceAccount{}
-			assertExists(lookupKey, fetchedServiceAccount)
+			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedServiceAccount)
 			Expect(fetchedServiceAccount.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-			assertExists(clusterScopedLookupKey, fetchedClusterRoleBinding)
+			assertExists(clusterScopedLookupKey(hz), fetchedClusterRoleBinding)
 
 			fetchedService := &corev1.Service{}
-			assertExists(lookupKey, fetchedService)
+			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedService)
 			Expect(fetchedService.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 
 			fetchedSts := &v1.StatefulSet{}
-			assertExists(lookupKey, fetchedSts)
+			assertExists(types.NamespacedName{Name: hz.Name, Namespace: hz.Namespace}, fetchedSts)
 
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 
-			Delete()
+			Delete(hz)
 
 			By("Expecting to ClusterRole removed via finalizer")
-			assertDoesNotExist(clusterScopedLookupKey, &rbacv1.ClusterRole{})
+			assertDoesNotExist(clusterScopedLookupKey(hz), &rbacv1.ClusterRole{})
 		})
 	})
 
 	Context("Hazelcast CustomResource with expose externally", func() {
-		FetchServices := func(waitForN int) *corev1.ServiceList {
+		FetchServices := func(hz *hazelcastv1alpha1.Hazelcast, waitForN int) *corev1.ServiceList {
 			serviceList := &corev1.ServiceList{}
 			Eventually(func() bool {
-				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(namespace), labelFilter)
+				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				if err != nil || len(serviceList.Items) != waitForN {
 					return false
 				}
@@ -177,27 +199,23 @@ var _ = Describe("Hazelcast controller", func() {
 				DiscoveryServiceType: corev1.ServiceTypeNodePort,
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: spec,
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
 			}
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 			Create(hz)
-			fetchedCR = EnsureStatus(fetchedCR)
+			fetchedCR := EnsureStatus(hz)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeUnisocket))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 
 			By("checking created services")
-			serviceList := FetchServices(1)
+			serviceList := FetchServices(hz, 1)
 
 			service := serviceList.Items[0]
 			Expect(service.Name).Should(Equal(hz.Name))
 			Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 
-			Delete()
+			Delete(hz)
 		})
 
 		It("should create Hazelcast cluster exposed for smart client", func() {
@@ -208,35 +226,31 @@ var _ = Describe("Hazelcast controller", func() {
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: spec,
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
 			}
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 			Create(hz)
-			fetchedCR = EnsureStatus(fetchedCR)
+			fetchedCR := EnsureStatus(hz)
 			Expect(fetchedCR.Spec.ExposeExternally.Type).Should(Equal(hazelcastv1alpha1.ExposeExternallyTypeSmart))
 			Expect(fetchedCR.Spec.ExposeExternally.DiscoveryServiceType).Should(Equal(corev1.ServiceTypeNodePort))
 			Expect(fetchedCR.Spec.ExposeExternally.MemberAccess).Should(Equal(hazelcastv1alpha1.MemberAccessNodePortExternalIP))
 
 			By("checking created services")
-			serviceList := FetchServices(4)
+			serviceList := FetchServices(hz, 4)
 
 			for _, s := range serviceList.Items {
-				if s.Name == lookupKey.Name {
+				if s.Name == hz.Name {
 					// discovery service
 					Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 				} else {
 					// member access service
-					Expect(s.Name).Should(ContainSubstring(lookupKey.Name))
+					Expect(s.Name).Should(ContainSubstring(hz.Name))
 					Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 				}
 			}
 
-			Delete()
+			Delete(fetchedCR)
 		})
 		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
@@ -248,30 +262,32 @@ var _ = Describe("Hazelcast controller", func() {
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: spec,
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
 			}
 
 			Create(hz)
-			FetchServices(4)
+			fetchedCR := EnsureStatus(hz)
+			FetchServices(fetchedCR, 4)
 
 			By("scaling the cluster to 6 members")
-			fetchedCR := EnsureStatus(hz)
+			fetchedCR = EnsureStatus(hz)
 			fetchedCR.Spec.ClusterSize = 6
 			Update(fetchedCR)
-			FetchServices(7)
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+			FetchServices(fetchedCR, 7)
 
 			By("scaling the cluster to 1 member")
-			fetchedCR = Fetch()
+			fetchedCR = EnsureStatus(hz)
 			fetchedCR.Spec.ClusterSize = 1
 			Update(fetchedCR)
-			FetchServices(2)
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+			FetchServices(fetchedCR, 2)
 
 			By("deleting the cluster")
-			Delete()
+			Delete(fetchedCR)
 		})
 
 		It("should allow updating expose externally configuration", func() {
@@ -284,48 +300,54 @@ var _ = Describe("Hazelcast controller", func() {
 				MemberAccess:         hazelcastv1alpha1.MemberAccessNodePortExternalIP,
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: spec,
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
 			}
 
 			Create(hz)
-			FetchServices(4)
+			fetchedCR := EnsureStatus(hz)
+			FetchServices(fetchedCR, 4)
 
 			By("updating type to unisocket")
-			fetchedCR := EnsureStatus(hz)
+			fetchedCR = EnsureStatus(fetchedCR)
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
-			FetchServices(1)
+
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+			FetchServices(fetchedCR, 1)
 
 			By("updating discovery service to LoadBalancer")
-			fetchedCR = Fetch()
+			fetchedCR = EnsureStatus(fetchedCR)
 			fetchedCR.Spec.ExposeExternally.DiscoveryServiceType = corev1.ServiceTypeLoadBalancer
 			Update(fetchedCR)
+
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+
 			Eventually(func() corev1.ServiceType {
-				serviceList := FetchServices(1)
+				serviceList := FetchServices(fetchedCR, 1)
 				return serviceList.Items[0].Spec.Type
-			}, timeout, interval).Should(Equal(corev1.ServiceTypeLoadBalancer))
+			}).Should(Equal(corev1.ServiceTypeLoadBalancer))
 
 			By("updating type to smart")
-			fetchedCR = Fetch()
+			fetchedCR = EnsureStatus(fetchedCR)
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeSmart
 			Update(fetchedCR)
-			FetchServices(4)
+
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+			FetchServices(fetchedCR, 4)
 
 			By("deleting expose externally configuration")
-			fetchedCR = Fetch()
 			fetchedCR.Spec.ExposeExternally = hazelcastv1alpha1.ExposeExternallyConfiguration{}
 			Update(fetchedCR)
-			Eventually(func() corev1.ServiceType {
-				serviceList := FetchServices(1)
-				return serviceList.Items[0].Spec.Type
-			}, timeout, interval).Should(Equal(corev1.ServiceTypeClusterIP))
-
-			Delete()
+			fetchedCR = Fetch(fetchedCR)
+			EnsureStatus(fetchedCR)
+			serviceList := FetchServices(fetchedCR, 1)
+			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
+			Delete(fetchedCR)
 		})
 
 		It("should return expected messages when exposeExternally is misconfigured", func() {
@@ -338,17 +360,12 @@ var _ = Describe("Hazelcast controller", func() {
 				MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
 			}
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
-				Spec: spec,
+				ObjectMeta: GetRandomObjectMeta(),
+				Spec:       spec,
 			}
 
-			var fetchedCR *hazelcastv1alpha1.Hazelcast
-
 			Create(hz)
-			fetchedCR = EnsureFailedStatus(fetchedCR)
+			fetchedCR := EnsureFailedStatus(hz)
 			Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when exposeExternally.type is set to \"Unisocket\", exposeExternally.memberAccess must not be set"))
 
 			By("fixing the incorrect configuration")
@@ -357,7 +374,7 @@ var _ = Describe("Hazelcast controller", func() {
 			fetchedCR = EnsureStatus(fetchedCR)
 			Expect(fetchedCR.Status.Message).To(BeEmpty())
 
-			Delete()
+			Delete(fetchedCR)
 		})
 	})
 	Context("Hazelcast CustomResource with default values", func() {
@@ -369,26 +386,16 @@ var _ = Describe("Hazelcast controller", func() {
 		}
 		It("should create CR with default values when empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
+				ObjectMeta: GetRandomObjectMeta(),
 			}
-
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-
 			Create(hz)
-			fetchedCR = EnsureStatus(fetchedCR)
+			fetchedCR := EnsureStatus(hz)
 			Expect(fetchedCR.Spec).To(Equal(defaultHzSpecs))
-
-			Delete()
+			Delete(hz)
 		})
 		It("should update the CR with the default values when updating the empty specs are applied", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      lookupKey.Name,
-					Namespace: lookupKey.Namespace,
-				},
+				ObjectMeta: GetRandomObjectMeta(),
 				Spec: hazelcastv1alpha1.HazelcastSpec{
 					ClusterSize:      5,
 					Repository:       "myorg/hazelcast",
@@ -396,19 +403,15 @@ var _ = Describe("Hazelcast controller", func() {
 					LicenseKeySecret: "licenseKeySecret",
 				},
 			}
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 			Create(hz)
-			fetchedCR = EnsureStatus(fetchedCR)
-
+			fetchedCR := EnsureStatus(hz)
 			fetchedCR.Spec = hazelcastv1alpha1.HazelcastSpec{}
 			Update(fetchedCR)
-			Eventually(func() hazelcastv1alpha1.HazelcastSpec {
-				fetchedCR = Fetch()
-				return fetchedCR.Spec
-			}, timeout, interval).Should(Equal(defaultHzSpecs))
+			fetchedCR = EnsureStatus(fetchedCR)
+			EnsureSpecEquals(fetchedCR, &defaultHzSpecs)
 
-			Delete()
+			Delete(hz)
 		})
 	})
 
@@ -422,16 +425,11 @@ var _ = Describe("Hazelcast controller", func() {
 				spec := test.HazelcastSpec(defaultSpecValues, ee)
 				spec.LicenseKeySecret = ""
 				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      lookupKey.Name,
-						Namespace: lookupKey.Namespace,
-					},
-					Spec: spec,
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
 				}
-				fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-
 				Create(hz)
-				fetchedCR = EnsureFailedStatus(fetchedCR)
+				fetchedCR := EnsureFailedStatus(hz)
 				Expect(fetchedCR.Status.Message).To(Equal("error validating new Spec: when Hazelcast Enterprise is deployed, licenseKeySecret must be set"))
 
 				By("filling the licenseSecretKey should fix it")
@@ -440,7 +438,111 @@ var _ = Describe("Hazelcast controller", func() {
 				fetchedCR = EnsureStatus(fetchedCR)
 				Expect(fetchedCR.Status.Message).To(BeEmpty())
 
-				Delete()
+				Delete(fetchedCR)
+			})
+		})
+	})
+
+	Context("Pod scheduling parameters", func() {
+		When("NodeSelector is used", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+					NodeSelector: map[string]string{
+						"node.selector": "1",
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+				Create(hz)
+
+				Eventually(func() map[string]string {
+					ss := GetStatefulSet(hz)
+					return ss.Spec.Template.Spec.NodeSelector
+				}, timeout, interval).Should(HaveKeyWithValue("node.selector", "1"))
+
+				Delete(hz)
+			})
+		})
+
+		When("Affinity is used", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+					Affinity: corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											{Key: "node.gpu", Operator: corev1.NodeSelectorOpExists},
+										},
+									},
+								},
+							},
+						},
+						PodAffinity: &corev1.PodAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+								{
+									Weight: 10,
+									PodAffinityTerm: corev1.PodAffinityTerm{
+										TopologyKey: "node.zone",
+									},
+								},
+							},
+						},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+								{
+									Weight: 10,
+									PodAffinityTerm: corev1.PodAffinityTerm{
+										TopologyKey: "node.zone",
+									},
+								},
+							},
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+				Create(hz)
+
+				Eventually(func() *corev1.Affinity {
+					ss := GetStatefulSet(hz)
+					return ss.Spec.Template.Spec.Affinity
+				}, timeout, interval).Should(Equal(&spec.Scheduling.Affinity))
+
+				Delete(hz)
+			})
+		})
+
+		When("Toleration is used", func() {
+			It("should pass the values to StatefulSet spec", func() {
+				spec := test.HazelcastSpec(defaultSpecValues, ee)
+				spec.Scheduling = hazelcastv1alpha1.SchedulingConfiguration{
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "node.zone",
+							Operator: corev1.TolerationOpExists,
+						},
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: GetRandomObjectMeta(),
+					Spec:       spec,
+				}
+				Create(hz)
+
+				Eventually(func() []corev1.Toleration {
+					ss := GetStatefulSet(hz)
+					return ss.Spec.Template.Spec.Tolerations
+				}, timeout, interval).Should(Equal(spec.Scheduling.Tolerations))
+
+				Delete(hz)
 			})
 		})
 	})
