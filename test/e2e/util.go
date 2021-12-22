@@ -66,7 +66,6 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 			return err
 		}
 
-		err = k8sClient.Delete(context.Background(), obj)
-		return err
+		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
 }

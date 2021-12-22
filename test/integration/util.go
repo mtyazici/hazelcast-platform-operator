@@ -20,10 +20,9 @@ func assertDoesNotExist(name types.NamespacedName, obj client.Object) {
 }
 
 func assertExists(name types.NamespacedName, obj client.Object) {
-	Eventually(func() bool {
-		err := k8sClient.Get(context.Background(), name, obj)
-		return err == nil
-	}, timeout, interval).Should(BeTrue())
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), name, obj)
+	}, timeout, interval).Should(Succeed())
 }
 
 func deleteIfExists(name types.NamespacedName, obj client.Object) {
@@ -35,8 +34,6 @@ func deleteIfExists(name types.NamespacedName, obj client.Object) {
 			}
 			return err
 		}
-
-		err = k8sClient.Delete(context.Background(), obj)
-		return err
+		return k8sClient.Delete(context.Background(), obj)
 	}, timeout, interval).Should(Succeed())
 }

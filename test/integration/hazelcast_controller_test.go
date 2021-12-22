@@ -76,9 +76,7 @@ var _ = Describe("Hazelcast controller", func() {
 	Delete := func() {
 		By("expecting to delete CR successfully")
 		fetchedCR := &hazelcastv1alpha1.Hazelcast{}
-
 		deleteIfExists(lookupKey, fetchedCR)
-
 		By("expecting to CR delete finish")
 		assertDoesNotExist(lookupKey, fetchedCR)
 	}
@@ -148,6 +146,7 @@ var _ = Describe("Hazelcast controller", func() {
 
 			fetchedSts := &v1.StatefulSet{}
 			assertExists(lookupKey, fetchedSts)
+
 			Expect(fetchedSts.ObjectMeta.OwnerReferences).To(ContainElement(expectedOwnerReference))
 			Expect(fetchedSts.Spec.Template.Spec.Containers[0].Image).Should(Equal(fetchedCR.DockerImage()))
 
@@ -255,13 +254,12 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 			Create(hz)
 			FetchServices(4)
 
 			By("scaling the cluster to 6 members")
-			fetchedCR = EnsureStatus(hz)
+			fetchedCR := EnsureStatus(hz)
 			fetchedCR.Spec.ClusterSize = 6
 			Update(fetchedCR)
 			FetchServices(7)
@@ -292,13 +290,12 @@ var _ = Describe("Hazelcast controller", func() {
 				},
 				Spec: spec,
 			}
-			fetchedCR := &hazelcastv1alpha1.Hazelcast{}
 
 			Create(hz)
 			FetchServices(4)
 
 			By("updating type to unisocket")
-			fetchedCR = EnsureStatus(hz)
+			fetchedCR := EnsureStatus(hz)
 			fetchedCR.Spec.ExposeExternally.Type = hazelcastv1alpha1.ExposeExternallyTypeUnisocket
 			fetchedCR.Spec.ExposeExternally.MemberAccess = ""
 			Update(fetchedCR)
