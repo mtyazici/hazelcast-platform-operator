@@ -1,0 +1,125 @@
+name: Nightly E2E tests on Azure
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+
+env:
+  AZURE_RESOURCE_GROUP: hazelcast-platform-operator
+  KUBECTL_VERSION: 1.22.0
+jobs:
+  prepare-env:
+    name: Create AKS cluster
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            az aks create --resource-group ${AZURE_RESOURCE_GROUP} --name "${CLUSTER_NAME}" \
+              --node-count 2 --generate-ssh-keys
+
+  aks-e2e-tests:
+    name: Run e2e test on AKS
+    runs-on: ubuntu-20.04
+    needs: "prepare-env"
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [ 'os', 'ee' ]
+    env:
+      NAMESPACE: test-operator-nightly-${{ matrix.edition }}
+      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
+      NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: Cache Golang dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install kubectl
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/bin
+          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
+          curl -L https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \
+            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update kubeconfig
+        run: |-
+          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          az aks get-credentials --resource-group "${AZURE_RESOURCE_GROUP}" --name "${CLUSTER_NAME}"
+
+      - name: Deploy Operator to EKS
+        run: |
+          kubectl create namespace ${NAMESPACE}
+          kubectl config set-context --current --namespace=${NAMESPACE}
+
+          make deploy NAMESPACE=${NAMESPACE} IMG=${IMG} NAME_PREFIX=${NAME_PREFIX}
+          DEPLOY_NAME=${NAME_PREFIX}controller-manager
+          kubectl rollout status deployment $DEPLOY_NAME
+
+      - name: Create secret
+        if: matrix.edition == 'ee'
+        run: |
+          kubectl create secret generic hazelcast-license-key --namespace ${NAMESPACE} \
+            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+
+      - name: Run Hazelcast E2E tests on EKS
+        id: e2e-test
+        run: |
+          case ${{ matrix.edition }} in
+            os) GO_TEST_FLAGS=-ee=false;;
+            ee) GO_TEST_FLAGS=-ee=true;;
+            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
+          esac
+          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} NAME_PREFIX=${NAME_PREFIX}
+
+      - name: Clean up after Tests
+        if: ${{ always() }}
+        run: |
+          make clean-up-namespace NAMESPACE=${NAMESPACE}
+
+  clean-up:
+    name: Delete AKS cluster
+    runs-on: ubuntu-20.04
+    if: ${{ always() }}
+    needs: ["prepare-env", "aks-e2e-tests"]
+    steps:
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Delete AKS cluster
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.31.0
+          inlineScript: |
+            CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+            az aks delete --name "${CLUSTER_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" -y
