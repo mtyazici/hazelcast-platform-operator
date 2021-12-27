@@ -99,8 +99,9 @@ jobs:
 
       - name: Create secret
         if: matrix.edition == 'ee'
-        run: kubectl create secret generic hazelcast-license-key \
-          --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
+        run: |
+          kubectl create secret generic hazelcast-license-key \
+            --namespace ${NAMESPACE} --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
 
       - name: Run Hazelcast E2E tests on EKS
         id: e2e-test
