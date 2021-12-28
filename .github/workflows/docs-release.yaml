@@ -1,0 +1,140 @@
+name: Publish Docs Site
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VERSION:
+        description: "Version in the form of X.Y[.Z]"
+        required: true
+      LATEST_SUPPORTED_HAZELCAST:
+        description: "Latest supported Hazelcast Version in the form of X.Y[.Z]"
+        required: true
+      LATEST_SUPPORTED_MC:
+        description: "Latest supported MC Version in the form of X.Y[.Z]"
+        required: true
+
+jobs:
+  publish_docs:
+    name: Publish Docs Site
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION }}
+    steps:
+      - name: Validate and set version
+        id: set-version
+        run: |
+          NUMBER='(0|[1-9][0-9]*)'
+          echo ${RELEASE_VERSION} | egrep "^$NUMBER.$NUMBER(.$NUMBER)?$"
+
+          MAJOR_MINOR_VERSION=$(echo ${RELEASE_VERSION} | sed 's|\([0-9]*\.[0-9]*\)\.[0-9]*|\1|')
+          echo "MAJOR_MINOR_VERSION=${MAJOR_MINOR_VERSION}" >> $GITHUB_ENV
+
+          if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
+            echo "::set-output name=OPERATOR_DOCS_BRANCH::main"
+          else
+            echo "::set-output name=OPERATOR_DOCS_BRANCH::v/$MAJOR_MINOR_VERSION"
+          fi
+
+      - name: Checkout to Operator docs repo
+        uses: actions/checkout@v2
+        with:
+          repository: hazelcast/hazelcast-platform-operator-docs
+          ref: ${{ steps.set-version.outputs.OPERATOR_DOCS_BRANCH }}
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Update versions
+        run: |
+          sed -i "0,/version: 'latest-snapshot'/s//version: '${MAJOR_MINOR_VERSION}'/" docs/antora.yml
+          sed -i "s/display_version: 'latest-snapshot'/display_version: '${MAJOR_MINOR_VERSION}'/" docs/antora.yml
+          sed -i "s/full-version: .*/full-version: '${RELEASE_VERSION}'/" docs/antora.yml
+          sed -i '/prerelease/d' docs/antora.yml
+          sed -i "s/page-latest-supported-hazelcast:.*/page-latest-supported-hazelcast: '${{ github.event.inputs.LATEST_SUPPORTED_HAZELCAST }}'/" docs/antora.yml
+          sed -i "s/page-latest-supported-mc:.*/page-latest-supported-mc: '${{ github.event.inputs.LATEST_SUPPORTED_MC }}'/" docs/antora.yml
+
+      - name: Commit and push changes
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=v/${MAJOR_MINOR_VERSION}
+          if [[ ${MAJOR_MINOR_VERSION} == ${RELEASE_VERSION} ]] ;then
+            git checkout -b $BRANCH_NAME
+          else
+            git fetch origin $BRANCH_NAME
+          fi
+
+          # Commit and push changes
+          git add docs/antora.yml
+          git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
+          git push -u origin $BRANCH_NAME
+
+      - name: Checkout to Hazelcast docs repo (develop)
+        uses: actions/checkout@v2
+        with:
+          repository: hazelcast/hazelcast-docs
+          ref: develop
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Update hazelcast-docs (develop)
+        id: update-hz-docs-develop
+        run: |
+          if ! grep -q operator-$MAJOR_MINOR_VERSION search-config.json; then
+            sed -i "s/\/operator\/latest\/\*.*/\/operator\/latest\/\*  \/operator\/${MAJOR_MINOR_VERSION}\/:splat 200\!/" _redirects
+            sed -i '$!N;0,/{\n.*\"url\"\: \"https\:\/\/docs\.hazelcast\.com\/operator/s//{\n      \"url\"\: \"https\:\/\/docs\.hazelcast\.com\/operator\/(\?P\<version\>\.\*\?)\/\"\,\n      \"tags\"\: [\n        \"operator\-'"${MAJOR_MINOR_VERSION}"'\"\n      ]\,\n      \"variables\"\: {\n        \"version\"\: [\n          \"'"$MAJOR_MINOR_VERSION"'\"\n        \]\n      \}\,\n      \"selectors_key\"\: \"operator\"\n    }\,\n    &/' search-config.json
+            echo '::set-output name=HZ_DOCS_CHANGED::true'
+          else
+            echo '::set-output name=HZ_DOCS_CHANGED::false'
+          fi
+
+      - name: Commit and push changes (develop)
+        if: ${{ steps.update-hz-docs-develop.outputs.HZ_DOCS_CHANGED == 'true'}}
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=opr-${MAJOR_MINOR_VERSION}-develop
+          git checkout -b $BRANCH_NAME
+
+          # Commit and push changes
+          git add _redirects search-config.json
+          git commit --signoff -m "Update _redirects and search-config.json for Operator ${MAJOR_MINOR_VERSION}"
+          git push -u origin $BRANCH_NAME
+
+      - name: Create PR (develop)
+        if: ${{ steps.update-hz-docs-develop.outputs.HZ_DOCS_CHANGED == 'true'}}
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh pr create --title "Platform operator for Kubernetes (${MAJOR_MINOR_VERSION})" --body "For develop branch." --base develop
+
+      - name: Checkout to Hazelcast docs repo (main)
+        uses: actions/checkout@v2
+        with:
+          repository: hazelcast/hazelcast-docs
+          token: ${{ secrets.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Update hazelcast-docs (main)
+        id: update-hz-docs
+        run: |
+          if ! grep -q operator-$MAJOR_MINOR_VERSION search-config.json; then
+            sed -i "s/\/operator\/latest\/\*.*/\/operator\/latest\/\*  \/operator\/${MAJOR_MINOR_VERSION}\/:splat 200\!/" _redirects
+            sed -i '$!N;0,/{\n.*\"url\"\: \"https\:\/\/docs\.hazelcast\.com\/operator/s//{\n      \"url\"\: \"https\:\/\/docs\.hazelcast\.com\/operator\/(\?P\<version\>\.\*\?)\/\"\,\n      \"tags\"\: [\n        \"operator\-'"${MAJOR_MINOR_VERSION}"'\"\n      ]\,\n      \"variables\"\: {\n        \"version\"\: [\n          \"'"$MAJOR_MINOR_VERSION"'\"\n        \]\n      \}\,\n      \"selectors_key\"\: \"operator\"\n    }\,\n    &/' search-config.json
+            echo '::set-output name=HZ_DOCS_CHANGED::true'
+          else
+            echo '::set-output name=HZ_DOCS_CHANGED::false'
+          fi
+
+      - name: Commit and push changes (main)
+        if: ${{ steps.update-hz-docs.outputs.HZ_DOCS_CHANGED == 'true'}}
+        run: |
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BRANCH_NAME=opr-${MAJOR_MINOR_VERSION}
+          git checkout -b $BRANCH_NAME
+
+          # Commit and push changes
+          git add _redirects search-config.json
+          git commit --signoff -m "Update _redirects and search-config.json for Operator ${MAJOR_MINOR_VERSION}"
+          git push -u origin $BRANCH_NAME
+
+      - name: Create PR (main)
+        if: ${{ steps.update-hz-docs.outputs.HZ_DOCS_CHANGED == 'true'}}
+        run: |
+          echo ${{ secrets.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          gh pr create --title "Platform operator for Kubernetes (${MAJOR_MINOR_VERSION})" --body "For main branch." --base main
