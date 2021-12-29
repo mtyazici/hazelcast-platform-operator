@@ -37,14 +37,14 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # hazelcast.com/hazelcast-platform-operator-bundle:$VERSION and hazelcast.com/hazelcast-platform-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= hazelcast.com/hazelcast-platform-operator
+IMAGE_TAG_BASE ?= hazelcast/hazelcast-platform-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= hazelcast/hazelcast-platform-operator:$(VERSION)
+IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Default namespace
@@ -143,10 +143,13 @@ docker-build: test docker-build-ci ## Build docker image with the manager.
 docker-build-ci: ## Build docker image with the manager without running tests.
 	docker build -t ${IMG} --build-arg version=${VERSION} .
 
+##@ Deployment
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Deployment
+docker-push-latest:
+	docker tag ${IMG} ${IMAGE_TAG_BASE}:latest
+	docker push ${IMAGE_TAG_BASE}:latest
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
