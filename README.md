@@ -1,10 +1,8 @@
 # Hazelcast Platform Operator #
 
-<img align="right" src="https://avatars.githubusercontent.com/u/1453152?s=200&v=4">
+<img align="right" src="https://hazelcast.com/brand-assets/files/hazelcast-stacked-flat-sm.png">
 
-Easily deploy Hazelcast clusters into Kubernetes environments and manage their lifecycles.
-
-[Introduction to Hazelcast Operator](dummy_link)
+Easily deploy Hazelcast clusters and Management Center into Kubernetes environments and manage their lifecycles.
 
 ## Table of Contents
 
@@ -15,31 +13,29 @@ Easily deploy Hazelcast clusters into Kubernetes environments and manage their l
 
 ## Documentation
 
-1. [Get started](https://docs.hazelcast.com/operator/5.0/get-started) with the Operator.
-2. [Connect the cluster](https://guides.hazelcast.org/hazelcast-platform-operator-expose-externally/main/#hazelcast-platform-operator:ROOT:index.adoc)
+1. [Get started](https://docs.hazelcast.com/operator/latest/get-started) with the Operator.
+2. [Connect the cluster from outside Kubernetes](https://guides.hazelcast.org/hazelcast-platform-operator-expose-externally/main)
    from the outside.
 
 ## Features
 
 Hazelcast Platform Operator supports the features below:
 
-* Custom resource for Hazelcast Platform (OS & [EE](https://trialrequest.hazelcast.com)) and Management Center
+* Custom resource for Hazelcast Platform (Open Source & Enterprise) and Management Center
 * Observe status of Hazelcast and Management Center clusters
 * Scale up and down Hazelcast clusters
 * Expose Hazelcast cluster to external
-  clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/5.0/clients/java#java-client-operation-modes))
+  clients ([Smart & Unisocket](https://docs.hazelcast.com/hazelcast/latest/clients/java#java-client-operation-modes))
+
+For Hazelcast Platform Enterprise, you can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
 ## Contribute
 
-Before you contribute to the Hazelcast Platform Operator, please read the followings:
+Before you contribute to the Hazelcast Platform Operator, please read the following:
 
+* [Contributing to Hazelcast Platform Operator](CONTRIBUTING.md)
 * [Developing and testing Hazelcast Platform Operator](DEVELOPER.md)
-* [Contributing to Hazelcast Platform Operator](/dummy_CONTRIBUTING.md)
-
-Please file issues before if you encounter any problems.
-
-Contributors must sign before the PRs are accepted: [CLA](https://www.hazelcast.com/legal)
 
 ## License
 
-Please see the [LICENSE](dummy_LICENSE.md) file.
+Please see the [LICENSE](LICENSE) file.
