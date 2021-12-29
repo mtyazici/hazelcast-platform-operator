@@ -14,13 +14,13 @@ There are multiple ways to contribute:
 If you need assistance, please reach us directly via [Slack](https://slack.hazelcast.com/).
 
 ## Issue Reports
-``
+
 Thanks for reporting your issue.
 To help us resolve your issue quickly and efficiently, we need as much data for diagnostics as possible.
 Please share with us the following information:
 
 1.	Exact operator version that you use (_e.g._ `5.0.1`, also whether it is a minor release or the latest snapshot).
-2.	Hazelcast and ManagementCenter CR(Custom Resource) YAML files.
+2.	Hazelcast and ManagementCenter CR (Custom Resource) YAML files.
 3.	Kubernetes distribution and version. (_e.g._ `GKE 1.21`, `Openshift 4.9` or `minikube`)
 4.	Logs from the operator, Hazelcast and, Management Center pods.
 5.	Detailed description of the steps to reproduce your issue.
@@ -44,5 +44,6 @@ All PRs follow the same process:
 3.	The latest changes are in the `main` branch.
 4.	Make sure to design clean commits that are easily readable. That includes descriptive commit messages.
 5.  Please keep your PRs as small as possible, _i.e._ if you plan to perform a huge change, do not submit a single and large PR for it. For an enhancement or larger feature, you can create a GitHub issue first to discuss.
-6.  Before you push, run the command `make lint` in your terminal and fix the linter errors if any. Push your PR once it is free of linter errors.
-7.	If you submit a PR as the solution to a specific issue, please mention the issue number either in the PR description or commit message.
+6.  Run `make generate-bundle-yaml` command, if you modify the API of Custom Resources.
+7.  Before you push, run the command `make lint` in your terminal and fix the linter errors if any. Push your PR once it is free of linter errors.
+8.	If you submit a PR as the solution to a specific issue, please mention the issue number either in the PR description or commit message.

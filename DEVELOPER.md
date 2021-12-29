@@ -7,8 +7,7 @@ In this document, you will find the required information/steps to ease your cont
 To deploy the operator from the source, you can run the command below:
 
 ```shell
-make install
-make deploy IMG=hazelcast/hazelcast-platform-operator
+make deploy IMG=hazelcast/hazelcast-platform-operator:latest
 ```
 
 > Note: The operator is installed into the `default` namespace by default. You can pass `NAMESPACE` to `make` commands if you want to change it.
@@ -18,14 +17,13 @@ make deploy IMG=hazelcast/hazelcast-platform-operator
 To remove the operator from the Kubernetes cluster, run the following command:
 
 ```shell
-make uninstall
 make undeploy
 ```
 
 ## Running the operator locally
 
 Hazelcast Platform Operator uses [hazelcast go-client](https://github.com/hazelcast/hazelcast-go-client) to connect to the cluster. For this reason, the pods need to be
-exposed outside the cluster. Run the `make expose-local` command to ex,p,o,se Hazelcast member to `localhost:8000`.
+exposed outside the cluster. Run the `make expose-local` command to expose Hazelcast member to `localhost:8000`.
 
 The operator run must be built, with `build constraint` tag `localrun`:
 
@@ -36,7 +34,6 @@ go build -o bin/manager -tags localrun main.go
 Or using `make` that will include the tag by default:
 
 ```shell
-make build
 make install run
 ```
 
@@ -68,7 +65,7 @@ You can also run unit & integration tests separately by `make test-unit` and `ma
 
 ### Running end-to-end tests
 
-You can run end-to-end tests by either [deploying the operator to Kubernetes cluster](#deploying-the-operator-to-kubernetes) or [running the operator locally](#running-the-operator-locally).
+You can run end-to-end tests by [deploying the operator to Kubernetes cluster](#deploying-the-operator-to-kubernetes).
 
 ```shell
 make test-e2e NAMESPACE=<YOUR NAMESPACE>
