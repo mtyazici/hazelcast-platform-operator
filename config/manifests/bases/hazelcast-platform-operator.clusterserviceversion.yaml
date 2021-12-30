@@ -32,7 +32,7 @@ spec:
 
     ## Before You Start 
 
-    If you are planning to create Hazelcast Platform Enterprise clusters, you need to [create a secret]() for the license. You can request a trial license key from [here](https://trialrequest.hazelcast.com).
+    If you are planning to create Hazelcast Platform Enterprise clusters, you need to [create a secret](https://docs.hazelcast.com/operator/latest/get-started#step-2-start-the-hazelcast-cluster) for the license. You can request a trial license key from [here](https://trialrequest.hazelcast.com).
 
     For Hazelcast Platform clusters, you can simply continue.
 
