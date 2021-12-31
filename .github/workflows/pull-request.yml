@@ -27,24 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Set up Golang
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2.5.2
-        if: always()
-        with:
-          args: --timeout 2m
-          skip-go-installation: true
-
-      - name: Run yamllint
-        uses: ibiqlik/action-yamllint@v3
-        if: always()
-        with:
-          config_file: hack/yamllint.yaml
-
   unit-tests:
     name: Run unit and integration tests
     runs-on: ubuntu-20.04
@@ -52,38 +34,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Set up Golang
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Run unit tests
-        run: make test-unit
-
-      - name: Run integration tests (OS)
-        run: make GO_TEST_TAGS=os test-it
-
-      - name: Run integration tests (EE)
-        run: make GO_TEST_TAGS=ee test-it
-
-      - name: Check if bundle.yaml is updated
-        run: |
-          mv bundle.yaml bundle.yaml.old
-          make generate-bundle-yaml
-
-          if ! cmp -s bundle.yaml bundle.yaml.old; then
-              echo "Please run generate-bundle.yaml"
-              exit 1
-          fi
 
   create-gke-cluster:
     name: Create GKE cluster and push image
@@ -113,55 +63,6 @@ jobs:
             echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
           fi
 
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          ref: ${{steps.decide-ref.outputs.ref}}
-
-      - name: Set up Golang
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
-        with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
-      - name: Login to GCR
-        run: gcloud auth configure-docker -q
-
-      - name: Build Operator Image and Push to GCR
-        run: |
-          make docker-build-ci IMG=${{ env.IMAGE }} VERSION=${{github.sha}}
-          make docker-push IMG=${{ env.IMAGE }}
-
-      - name: Create GKE cluster
-        id: set-cluster-name
-        run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          echo "::set-output name=CLUSTER_NAME::${CLUSTER_NAME}"
-          gcloud container clusters create ${CLUSTER_NAME} \
-            --zone=${{ env.GKE_ZONE }} \
-            --project=${{ env.GCP_PROJECT_ID }} \
-            --network=${{ env.GCP_NETWORK }} \
-            --machine-type=n1-standard-2 \
-            --num-nodes=2
-          sleep 30
-
   gke-e2e-tests:
     name: Run E2E tests
     runs-on: ubuntu-20.04
@@ -186,81 +87,6 @@ jobs:
             echo "::set-output name=ref::refs/pull/${{ github.event.pull_request.number }}/merge"
           fi
 
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          ref: ${{steps.decide-ref.outputs.ref}}
-
-      - name: Set up Golang
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-
-      - name: Cache Golang dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Install kubectl
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}/bin
-          echo "${GITHUB_WORKSPACE}/bin" >> ${GITHUB_PATH}
-          curl -L https://dl.k8s.io/release/v${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl \
-            -o ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
-
-      - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
-        with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
-      - name: Connect to the GKE cluster
-        run: |
-          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --zone ${{ env.GKE_ZONE }} \
-            --project ${{ env.GCP_PROJECT_ID }}
-
-      - name: Deploy Operator to GKE
-        run: |
-          kubectl create namespace ${{ env.NAMESPACE }}
-          kubectl config set-context --current --namespace=$NAMESPACE
-
-          DEPLOY_NAME=${NAME_PREFIX}controller-manager
-          echo "DEPLOY_NAME=${DEPLOY_NAME}" >> $GITHUB_ENV
-
-          make deploy IMG=$IMAGE NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
-          kubectl rollout status deployment $DEPLOY_NAME
-
-      - name: Create secret
-        if: matrix.edition == 'ee'
-        run: |
-          kubectl create secret generic hazelcast-license-key \
-            --namespace ${{ env.NAMESPACE }} \
-            --from-literal=license-key=${{ secrets.HZ_LICENSE_KEY }}
-
-      - name: Run Hazelcast E2E tests at GKE
-        id: e2e-test
-        run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=$NAMESPACE NAME_PREFIX=$NAME_PREFIX
-
-      - name: Clean up after Tests
-        if: always()
-        run: |
-          make clean-up-namespace NAMESPACE=${NAMESPACE}
-
-
   delete-cluster:
     name: Delete Cluster
     runs-on: ubuntu-20.04
@@ -270,16 +96,4 @@ jobs:
       CLUSTER_NAME: ${{ needs.create-gke-cluster.outputs.CLUSTER_NAME }}
     steps:
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v0.4.3'
-        with:
-          credentials_json: ${{ secrets.GKE_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
-      - name: Delete GKE cluster
-        if: always()
-        run: |-
-          gcloud container clusters delete ${{ env.CLUSTER_NAME }} --zone ${{ env.GKE_ZONE }} --quiet
+        run: echo 1
