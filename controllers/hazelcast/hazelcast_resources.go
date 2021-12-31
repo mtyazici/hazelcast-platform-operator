@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"strconv"
 
+	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"gopkg.in/yaml.v2"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -27,23 +29,8 @@ import (
 
 // Environment variables used for Hazelcast cluster configuration
 const (
-	// kubernetesEnabled enable Kubernetes discovery
-	kubernetesEnabled = "HZ_NETWORK_JOIN_KUBERNETES_ENABLED"
-	// kubernetesServiceName used to scan only PODs connected to the given service
-	kubernetesServiceName = "HZ_NETWORK_JOIN_KUBERNETES_SERVICENAME"
-	// kubernetesNodeNameAsExternalAddress uses the node name to connect to a NodePort service instead of looking up the external IP using the API
-	kubernetesNodeNameAsExternalAddress = "HZ_NETWORK_JOIN_KUBERNETES_USENODENAMEASEXTERNALADDRESS"
-	// kubernetesServicePerPodLabel label name used to tag services that should form the Hazelcast cluster together
-	kubernetesServicePerPodLabel = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELNAME"
-	// kubernetesServicePerPodLabelValue label value used to tag services that should form the Hazelcast cluster together
-	kubernetesServicePerPodLabelValue = "HZ_NETWORK_JOIN_KUBERNETES_SERVICEPERPODLABELVALUE"
-
-	restEnabled            = "HZ_NETWORK_RESTAPI_ENABLED"
-	restHealthCheckEnabled = "HZ_NETWORK_RESTAPI_ENDPOINTGROUPS_HEALTHCHECK_ENABLED"
-
 	// hzLicenseKey License key for Hazelcast cluster
 	hzLicenseKey = "HZ_LICENSEKEY"
-	clusterName  = "HZ_CLUSTERNAME"
 )
 
 func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
@@ -384,6 +371,70 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 	return true
 }
 
+func (r *HazelcastReconciler) reconcileConfigMap(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metadata(h),
+	}
+
+	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	if err != nil {
+		logger.Error(err, "Failed to set owner reference on ConfigMap")
+		return err
+	}
+
+	opResult, err := util.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		cm.Data = hazelcastConfigMapData(h)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "ConfigMap", h.Name, "result", opResult)
+	}
+	return err
+}
+func hazelcastConfigMapData(h *hazelcastv1alpha1.Hazelcast) map[string]string {
+	cfg := hazelcastConfigMapStruct(h)
+	yml, _ := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
+	return map[string]string{"hazelcast.yaml": string(yml)}
+}
+
+func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
+	cfg := config.Hazelcast{
+		Jet: config.Jet{
+			Enabled: n.LabelValueTrue,
+		},
+		Network: config.Network{
+			Join: config.Join{
+				Kubernetes: config.Kubernetes{
+					Enabled:     n.LabelValueTrue,
+					ServiceName: h.Name,
+				},
+			},
+			RestAPI: config.RestAPI{
+				Enabled: n.LabelValueTrue,
+				EndpointGroups: config.EndpointGroups{
+					HealthCheck: config.HealthCheck{
+						Enabled: n.LabelValueTrue,
+					},
+				},
+			},
+		},
+	}
+
+	if h.Spec.ExposeExternally.UsesNodeName() {
+		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = n.LabelValueTrue
+	}
+
+	if h.Spec.ExposeExternally.IsSmart() {
+		cfg.Network.Join.Kubernetes.ServicePerPodLabelName = n.ServicePerPodLabelName
+		cfg.Network.Join.Kubernetes.ServicePerPodLabelValue = n.LabelValueTrue
+	}
+
+	if h.Spec.ClusterName != "" {
+		cfg.ClusterName = h.Spec.ClusterName
+	}
+	return cfg
+}
+
 func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	ls := labels(h)
 	sts := &appsv1.StatefulSet{
@@ -447,8 +498,26 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 								Drop: []v1.Capability{"ALL"},
 							},
 						},
+						VolumeMounts: []v1.VolumeMount{
+							{
+								Name:      n.HazelcastStorageName,
+								MountPath: n.HazelcastMountPath,
+							},
+						},
 					}},
 					TerminationGracePeriodSeconds: &[]int64{600}[0],
+					Volumes: []v1.Volume{
+						{
+							Name: n.HazelcastStorageName,
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: h.Name,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -477,10 +546,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 
 func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	envs := []v1.EnvVar{
-		{Name: kubernetesEnabled, Value: n.LabelValueTrue},
-		{Name: kubernetesServiceName, Value: h.Name},
-		{Name: restEnabled, Value: n.LabelValueTrue},
-		{Name: restHealthCheckEnabled, Value: n.LabelValueTrue},
+		corev1.EnvVar{
+			Name:  "JAVA_OPTS",
+			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath)},
 	}
 	if h.Spec.LicenseKeySecret != "" {
 		envs = append(envs,
@@ -495,21 +563,6 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 					},
 				},
 			})
-	}
-
-	if h.Spec.ExposeExternally.UsesNodeName() {
-		envs = append(envs, v1.EnvVar{Name: kubernetesNodeNameAsExternalAddress, Value: n.LabelValueTrue})
-	}
-
-	if h.Spec.ExposeExternally.IsSmart() {
-		envs = append(envs,
-			v1.EnvVar{Name: kubernetesServicePerPodLabel, Value: n.ServicePerPodLabelName},
-			v1.EnvVar{Name: kubernetesServicePerPodLabelValue, Value: n.LabelValueTrue},
-		)
-	}
-
-	if h.Spec.ClusterName != "" {
-		envs = append(envs, v1.EnvVar{Name: clusterName, Value: h.Spec.ClusterName})
 	}
 
 	return envs
@@ -536,6 +589,11 @@ func podAnnotations(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	if h.Spec.ExposeExternally.IsSmart() {
 		ans[n.ExposeExternallyAnnotation] = string(h.Spec.ExposeExternally.MemberAccess)
 	}
+	cfg := hazelcastConfigMapStruct(h)
+	cfgRestart := cfg.HazelcastConfigForcingRestart()
+	hzCfg := config.HazelcastWrapper{Hazelcast: cfgRestart}
+	hzCfgYaml, _ := yaml.Marshal(hzCfg)
+	ans[n.CurrentHazelcastConfigForcingRestart] = string(hzCfgYaml)
 	return ans
 }
 
@@ -554,9 +612,11 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	}
 
 	opResult, err := util.CreateOrUpdate(ctx, r.Client, h, func() error {
-		ans := map[string]string{}
-		ans[n.LastSuccessfulConfigAnnotation] = string(hs)
-		h.ObjectMeta.Annotations = ans
+		if h.ObjectMeta.Annotations == nil {
+			ans := map[string]string{}
+			h.ObjectMeta.Annotations = ans
+		}
+		h.ObjectMeta.Annotations[n.LastSuccessfulSpecAnnotation] = string(hs)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

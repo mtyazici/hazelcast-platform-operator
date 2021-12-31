@@ -47,6 +47,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - events
   - pods
   - serviceaccounts

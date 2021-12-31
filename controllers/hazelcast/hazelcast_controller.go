@@ -56,7 +56,7 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme)
 // ClusterRole inherited from Hazelcast ClusterRole
 //+kubebuilder:rbac:groups="",resources=endpoints;pods;nodes;services,verbs=get;list
 // Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
+//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;pods,verbs=get;list;watch;create;update;patch;delete,namespace=system
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=system
 // ClusterRole related to Reconcile()
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
@@ -139,6 +139,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if !r.isServicePerPodReady(ctx, h, logger) {
 		logger.Info("Service per pod is not ready, waiting.")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
+	}
+
+	err = r.reconcileConfigMap(ctx, h, logger)
+	if err != nil {
+		return update(ctx, r.Client, h, failedPhase(err))
 	}
 
 	if err = r.reconcileStatefulset(ctx, h, logger); err != nil {
