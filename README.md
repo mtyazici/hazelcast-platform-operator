@@ -4,6 +4,8 @@
 
 Easily deploy Hazelcast clusters and Management Center into Kubernetes environments and manage their lifecycles.
 
+Hazelcast Platform Operator is based on the [Operator SDK](https://github.com/operator-framework/operator-sdk) to follow best practices.
+
 ## Table of Contents
 
 * [Documentation](#documentation)
