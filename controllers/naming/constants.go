@@ -13,10 +13,11 @@ const (
 	// LicenseKeySecret default license key secret
 	LicenseKeySecret = "hazelcast-license-key"
 	// ServicePerPodLabelName set to true when the service is a Service per pod
-	ServicePerPodLabelName         = "hazelcast.com/service-per-pod"
-	ServicePerPodCountAnnotation   = "hazelcast.com/service-per-pod-count"
-	ExposeExternallyAnnotation     = "hazelcast.com/expose-externally-member-access"
-	LastSuccessfulConfigAnnotation = "hazelcast.com/last-successful-config"
+	ServicePerPodLabelName                       = "hazelcast.com/service-per-pod"
+	ServicePerPodCountAnnotation                 = "hazelcast.com/service-per-pod-count"
+	ExposeExternallyAnnotation                   = "hazelcast.com/expose-externally-member-access"
+	LastSuccessfulSpecAnnotation                 = "hazelcast.com/last-successful-spec"
+	CurrentHazelcastConfigForcingRestartChecksum = "hazelcast.com/current-hazelcast-config-forcing-restart-checksum"
 
 	// PodNameLabel label that represents the name of the pod in the StatefulSet
 	PodNameLabel = "statefulset.kubernetes.io/pod-name"
@@ -30,9 +31,11 @@ const (
 	LabelValueTrue  = "true"
 	LabelValueFalse = "false"
 
-	OperatorName      = "hazelcast-platform-operator"
-	Hazelcast         = "hazelcast"
-	HazelcastPortName = "hazelcast-port"
+	OperatorName         = "hazelcast-platform-operator"
+	Hazelcast            = "hazelcast"
+	HazelcastPortName    = "hazelcast-port"
+	HazelcastStorageName = Hazelcast + "-storage"
+	HazelcastMountPath   = "/data/hazelcast"
 
 	// ManagementCenter MC name
 	ManagementCenter = "management-center"

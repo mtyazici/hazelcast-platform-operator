@@ -627,6 +627,22 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  - events
+  - pods
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - events
   - pods
   - serviceaccounts
