@@ -6,6 +6,7 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -50,6 +51,9 @@ var _ = BeforeSuite(func() {
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
+
+	err = platform.FindAndSetPlatform(cfg)
+	Expect(err).NotTo(HaveOccurred())
 
 	err = hazelcastcomv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())

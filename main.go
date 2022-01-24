@@ -6,6 +6,7 @@ import (
 
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/managementcenter"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -66,7 +67,8 @@ func main() {
 		setupLog.Info("Watching namespace: " + namespace)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	cfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
@@ -77,6 +79,12 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	err = platform.FindAndSetPlatform(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to get platform info")
 		os.Exit(1)
 	}
 
