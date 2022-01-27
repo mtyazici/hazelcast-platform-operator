@@ -7,25 +7,24 @@ import (
 	"hash/crc32"
 	"strconv"
 
-	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"gopkg.in/yaml.v2"
-
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	config "github.com/hazelcast/hazelcast-platform-operator/controllers/config"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 // Environment variables used for Hazelcast cluster configuration
@@ -61,6 +60,9 @@ func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcast
 	if err != nil {
 		logger.Error(err, "Failed to remove finalizer from custom resource")
 		return err
+	}
+	if util.IsPhoneHomeEnabled() {
+		delete(r.metrics.HazelcastMetrics, h.UID)
 	}
 	key := types.NamespacedName{Name: h.Name, Namespace: h.Namespace}
 	if c, ok := r.hzClients.Load(key); ok {
@@ -553,6 +555,10 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 		{
 			Name:  "JAVA_OPTS",
 			Value: fmt.Sprintf("-Dhazelcast.config=%s/hazelcast.yaml", n.HazelcastMountPath),
+		},
+		{
+			Name:  "HZ_PARDOT_ID",
+			Value: "operator",
 		},
 	}
 	if h.Spec.LicenseKeySecret != "" {

@@ -6,10 +6,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
-	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -17,6 +13,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/util"
 )
 
 // Environment variables used for Management Center configuration
@@ -27,6 +28,32 @@ const (
 	mcInitCmd = "MC_INIT_CMD"
 	javaOpts  = "JAVA_OPTS"
 )
+
+func (r *ManagementCenterReconciler) addFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(mc, n.Finalizer) {
+		controllerutil.AddFinalizer(mc, n.Finalizer)
+		err := r.Update(ctx, mc)
+		if err != nil {
+			logger.Error(err, "Failed to add finalizer into custom resource")
+			return err
+		}
+		logger.V(1).Info("Finalizer added into custom resource successfully")
+	}
+	return nil
+}
+
+func (r *ManagementCenterReconciler) executeFinalizer(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
+	controllerutil.RemoveFinalizer(mc, n.Finalizer)
+	err := r.Update(ctx, mc)
+	if err != nil {
+		logger.Error(err, "Failed to remove finalizer from custom resource")
+		return err
+	}
+	if util.IsPhoneHomeEnabled() {
+		delete(r.metrics.MCMetrics, mc.UID)
+	}
+	return nil
+}
 
 func (r *ManagementCenterReconciler) reconcileRole(ctx context.Context, mc *hazelcastv1alpha1.ManagementCenter, logger logr.Logger) error {
 	if platform.GetType() == platform.Kubernetes {
