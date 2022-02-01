@@ -130,14 +130,16 @@ jobs:
       - name: Add Annotation for redhat-marketplace-operators
         if: env.REPO_NAME == 'redhat-marketplace-operators'
         run: |
+          OPERATOR_NAME_RHPM=${OPERATOR_NAME}-rhmp
+          echo "OPERATOR_NAME_RHPM=${OPERATOR_NAME_RHPM}" >> $GITHUB_ENV
+
           curl -sSLo ./bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64 --create-dirs
           chmod +x ./bin/yq
 
           ./bin/yq -i e ".metadata.annotations += \
-          {\"marketplace.openshift.io/remote-workflow\": \"https://marketplace.redhat.com/en-us/operators/hazelcast-platform-operator/pricing?utm_source=openshift_console\", \
-           \"marketplace.openshift.io/support-workflow\": \"https://marketplace.redhat.com/en-us/operators/hazelcast-platform-operator/support?utm_source=openshift_console\" }" \
-          config/manifests/bases/hazelcast-platform-operator.clusterserviceversion.yaml
-          
+          {\"marketplace.openshift.io/remote-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/pricing?utm_source=openshift_console\", \
+           \"marketplace.openshift.io/support-workflow\": \"https://marketplace.redhat.com/en-us/operators/${OPERATOR_NAME_RHPM}/support?utm_source=openshift_console\" }" \
+          config/manifests/bases/${OPERATOR_NAME}.clusterserviceversion.yaml
 
       - name: Build Bundle
         run: |
@@ -154,7 +156,6 @@ jobs:
       - name: Change package name for redhat-marketplace-operators
         if: env.REPO_NAME == 'redhat-marketplace-operators'
         run: |
-          OPERATOR_NAME_RHPM=${OPERATOR_NAME}-rhmp
           sed -i "s|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME}|operators.operatorframework.io.bundle.package.v1: ${OPERATOR_NAME_RHPM}|" bundle/metadata/annotations.yaml
           mv bundle/manifests/${OPERATOR_NAME}.clusterserviceversion.yaml bundle/manifests/${OPERATOR_NAME_RHPM}.clusterserviceversion.yaml
 
