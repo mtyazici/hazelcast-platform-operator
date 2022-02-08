@@ -150,6 +150,14 @@ func (c *ExposeExternallyConfiguration) DiscoveryK8ServiceType() corev1.ServiceT
 	}
 }
 
+// Returns the member access type that is used for the communication with each member (NodePortExternalIP by default).
+func (c *ExposeExternallyConfiguration) MemberAccessType() MemberAccess {
+	if c.MemberAccess != "" {
+		return c.MemberAccess
+	}
+	return MemberAccessNodePortExternalIP
+}
+
 // Returns service type that is used for the communication with each member (NodePort by default).
 func (c *ExposeExternallyConfiguration) MemberAccessServiceType() corev1.ServiceType {
 	switch c.MemberAccess {
