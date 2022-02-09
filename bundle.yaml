@@ -837,7 +837,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: hazelcast/hazelcast-platform-operator:5.1
+        image: hazelcast/hazelcast-platform-operator:latest-snapshot
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
