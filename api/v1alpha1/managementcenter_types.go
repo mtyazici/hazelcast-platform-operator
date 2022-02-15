@@ -45,6 +45,10 @@ type ManagementCenterSpec struct {
 	// +optional
 	// +kubebuilder:default:={enabled: true, size: "10Gi"}
 	Persistence PersistenceConfiguration `json:"persistence,omitempty"`
+
+	// Scheduling details
+	// +optional
+	Scheduling SchedulingConfiguration `json:"scheduling,omitempty"`
 }
 
 type HazelcastClusterConfig struct {
