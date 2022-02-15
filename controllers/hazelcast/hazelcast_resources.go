@@ -421,6 +421,9 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 					ClusterWrite: config.EndpointGroup{
 						Enabled: &[]bool{true}[0],
 					},
+					Persistence: config.EndpointGroup{
+						Enabled: &[]bool{true}[0],
+					},
 				},
 			},
 		},
@@ -725,6 +728,9 @@ func (r *HazelcastReconciler) applyDefaultHazelcastSpecs(ctx context.Context, h 
 	if h.Spec.ClusterSize == 0 {
 		h.Spec.ClusterSize = n.DefaultClusterSize
 		changed = true
+	}
+	if h.Spec.ClusterName == "" {
+		h.Spec.ClusterName = n.DefaultClusterName
 	}
 	if !changed {
 		return nil
