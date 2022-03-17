@@ -60,11 +60,11 @@ jobs:
 
       - name: Move API reference to docs repo
         run: |
-          if cmp -s operator-repo/api-ref.adoc modules/ROOT/pages/api-ref.adoc; then
+          if cmp -s operator-repo/api-ref.adoc docs/modules/ROOT/pages/api-ref.adoc; then
               echo "No need to update API Reference doc"
               exit 0
           fi
-          mv operator-repo/api-ref.adoc modules/ROOT/pages/api-ref.adoc
+          mv operator-repo/api-ref.adoc docs/modules/ROOT/pages/api-ref.adoc
 
       - name: Commit and push changes
         run: |
@@ -76,7 +76,7 @@ jobs:
           fi
 
           # Commit and push changes
-          git add docs/antora.yml modules/ROOT/pages/api-ref.adoc
+          git add docs/antora.yml docs/modules/ROOT/pages/api-ref.adoc
           git commit --signoff -m "Update docs to ${RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
 
