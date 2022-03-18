@@ -453,6 +453,10 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 			ClusterDataRecoveryPolicy: clusterDataRecoveryPolicy(h.Spec.Persistence.ClusterDataRecoveryPolicy),
 			AutoRemoveStaleData:       &[]bool{h.Spec.Persistence.AutoRemoveStaleData()}[0],
 		}
+		if h.Spec.Persistence.DataRecoveryTimeout != 0 {
+			cfg.Persistence.ValidationTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
+			cfg.Persistence.DataLoadTimeoutSec = h.Spec.Persistence.DataRecoveryTimeout
+		}
 	}
 	return cfg
 }
@@ -639,6 +643,36 @@ func volumeMount(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
 		})
 	}
 	return mounts
+}
+
+// checkHotRestart checks if the persistence feature and AutoForceStart is enabled, pods are failing,
+// and the cluster is in the PASSIVE mode and performs the Force Start action.
+func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
+		return nil
+	}
+	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster HotRestart.")
+	for _, member := range h.Status.Members {
+		if !member.Ready && member.Reason == "CrashLoopBackOff" {
+			logger.Info("Member is crashing with CrashLoopBackOff.",
+				"RestartCounts", member.RestartCount, "Message", member.Message)
+			rest := NewRestClient(h)
+			state, err := rest.GetState(ctx)
+			if err != nil {
+				return err
+			}
+			if state != "passive" {
+				logger.Info("Force Start can only be triggered on the cluster in PASSIVE state.",
+					"State", state)
+				return nil
+			}
+			err = rest.ForceStart(ctx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func clusterDataRecoveryPolicy(policyType hazelcastv1alpha1.DataRecoveryPolicyType) string {

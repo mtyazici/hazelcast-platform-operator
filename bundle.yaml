@@ -97,6 +97,10 @@ spec:
               persistence:
                 description: Persistence configuration
                 properties:
+                  autoForceStart:
+                    default: false
+                    description: AutoForceStart enables the detection of constantly failing cluster and trigger the Force Start action.
+                    type: boolean
                   baseDir:
                     description: Persistence base directory.
                     type: string
@@ -109,6 +113,10 @@ spec:
                     - PartialRecoveryMostComplete
                     - PartialRecoveryForceStart
                     type: string
+                  dataRecoveryTimeout:
+                    description: 'DataRecoveryTimeout is timeout for each step of data recovery in seconds. Maximum timeout is equal to DataRecoveryTimeout*2 (for each step: validation and data-load).'
+                    format: int32
+                    type: integer
                   hostPath:
                     description: Host Path directory.
                     type: string
@@ -602,6 +610,10 @@ spec:
                     reason:
                       description: Reason contains the optional reason of member crash or restart.
                       type: string
+                    restartCount:
+                      description: RestartCount is the number of times the member has been restarted.
+                      format: int32
+                      type: integer
                     uid:
                       description: Uid is the unique member identifier within the cluster.
                       type: string
@@ -610,6 +622,7 @@ spec:
                       type: string
                   required:
                   - connected
+                  - restartCount
                   type: object
                 type: array
               message:

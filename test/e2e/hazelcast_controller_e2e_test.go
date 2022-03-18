@@ -187,7 +187,7 @@ var _ = Describe("Hazelcast", func() {
 			h := hazelcastconfig.Default(hzNamespace, ee)
 			create(h)
 
-			evaluateReadyMembers(lookupKey)
+			evaluateReadyMembers(lookupKey, 3)
 
 			assertMemberLogs(h, "Members {size:3, ver:3}")
 
@@ -204,7 +204,7 @@ var _ = Describe("Hazelcast", func() {
 					err := k8sClient.Delete(context.Background(), &pods.Items[i], client.PropagationPolicy(v1.DeletePropagationForeground))
 					Expect(err).ToNot(HaveOccurred())
 				}
-				evaluateReadyMembers(lookupKey)
+				evaluateReadyMembers(lookupKey, 3)
 			})
 		})
 	})
@@ -266,7 +266,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
 			create(hazelcast)
 
-			evaluateReadyMembers(lookupKey)
+			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
 			t := time.Now()
@@ -294,6 +294,74 @@ var _ = Describe("Hazelcast", func() {
 			Expect(logs.Close()).Should(Succeed())
 		})
 
+		It("should trigger ForceStart when restart from HotBackup failed", func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
+			create(hazelcast)
+
+			evaluateReadyMembers(lookupKey, 3)
+
+			By("Creating HotBackup CR")
+			t := time.Now()
+			hotBackup := hazelcastconfig.HotBackup(hazelcast.Name, hzNamespace)
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+
+			By("Finding Backup sequence")
+			logs := test.GetPodLogs(context.Background(), types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.PodLogOptions{
+				Follow:    true,
+				SinceTime: &v1.Time{Time: t},
+			})
+			defer logs.Close()
+			scanner := bufio.NewScanner(logs)
+			test.EventuallyInLogs(scanner, timeout, logInterval).
+				Should(ContainSubstring("Starting new hot backup with sequence"))
+			line := scanner.Text()
+			Expect(logs.Close()).Should(Succeed())
+
+			compRegEx := regexp.MustCompile(`Starting new hot backup with sequence (?P<seq>\d+)`)
+			match := compRegEx.FindStringSubmatch(line)
+			var seq string
+			for i, name := range compRegEx.SubexpNames() {
+				if name == "seq" && i > 0 && i <= len(match) {
+					seq = match[i]
+				}
+			}
+			if seq == "" {
+				Fail("Backup sequence not found")
+			}
+			Expect(k8sClient.Delete(context.Background(), hazelcast, client.PropagationPolicy(v1.DeletePropagationForeground))).Should(Succeed())
+
+			assertDoesNotExist(types.NamespacedName{
+				Name:      hzName + "-0",
+				Namespace: hzNamespace,
+			}, &corev1.Pod{})
+
+			By("Waiting for Hazelcast CR to be removed", func() {
+				Eventually(func() error {
+					h := &hazelcastcomv1alpha1.Hazelcast{}
+					return k8sClient.Get(context.Background(), types.NamespacedName{
+						Name:      hzName,
+						Namespace: hzNamespace,
+					}, h)
+				}, timeout, interval).ShouldNot(Succeed())
+			})
+
+			By("Creating new Hazelcast cluster from existing backup with 2 members")
+			baseDir := "/data/hot-restart/hot-backup/backup-" + seq
+			hazelcast = hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, false)
+			hazelcast.Spec.ClusterSize = &[]int32{2}[0]
+			hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
+			hazelcast.Spec.Persistence.AutoForceStart = true
+			create(hazelcast)
+
+			evaluateReadyMembers(lookupKey, 2)
+		})
+
 		DescribeTable("should successfully restart from HotBackup data", func(params ...interface{}) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
@@ -302,7 +370,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast := addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
 			create(hazelcast)
 
-			evaluateReadyMembers(lookupKey)
+			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
 			t := time.Now()
@@ -357,7 +425,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast = addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
 
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-			evaluateReadyMembers(lookupKey)
+			evaluateReadyMembers(lookupKey, 3)
 
 			logs = test.GetPodLogs(context.Background(), types.NamespacedName{
 				Name:      hzName + "-0",
@@ -418,13 +486,13 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	Fail(fmt.Sprintf("Failed to find \"%s\" in member logs", expected))
 }
 
-func evaluateReadyMembers(lookupKey types.NamespacedName) {
+func evaluateReadyMembers(lookupKey types.NamespacedName, membersCount int) {
 	hz := &hazelcastcomv1alpha1.Hazelcast{}
 	Eventually(func() string {
 		err := k8sClient.Get(context.Background(), lookupKey, hz)
 		Expect(err).ToNot(HaveOccurred())
 		return hz.Status.Cluster.ReadyMembers
-	}, timeout, interval).Should(Equal("3/3"))
+	}, timeout, interval).Should(Equal(fmt.Sprintf("%d/%d", membersCount, membersCount)))
 }
 
 func getFirstWorkerNodeName() string {

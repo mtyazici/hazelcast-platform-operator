@@ -85,6 +85,16 @@ type HazelcastPersistenceConfiguration struct {
 	// +optional
 	ClusterDataRecoveryPolicy DataRecoveryPolicyType `json:"clusterDataRecoveryPolicy,omitempty"`
 
+	// AutoForceStart enables the detection of constantly failing cluster and trigger the Force Start action.
+	// +kubebuilder:default:=false
+	// +optional
+	AutoForceStart bool `json:"autoForceStart"`
+
+	// DataRecoveryTimeout is timeout for each step of data recovery in seconds.
+	// Maximum timeout is equal to DataRecoveryTimeout*2 (for each step: validation and data-load).
+	// +optional
+	DataRecoveryTimeout int32 `json:"dataRecoveryTimeout"`
+
 	// Configuration of PersistenceVolumeClaim.
 	// +optional
 	Pvc PersistencePvcConfiguration `json:"pvc"`
@@ -125,9 +135,6 @@ const (
 	// MostComplete allow partial start with the members that have most complete partition table
 	// and corresponds to "cluster-data-recovery-policy.PARTIAL_RECOVERY_MOST_COMPLETE" configuration option.
 	MostComplete DataRecoveryPolicyType = "PartialRecoveryMostComplete"
-
-	// ForceStart deletes all data in your cluster members' persistence stores when the cluster recovery fails.
-	ForceStart DataRecoveryPolicyType = "ForceStart"
 )
 
 // SchedulingConfiguration defines the pods scheduling details
@@ -200,6 +207,7 @@ const (
 	MemberAccessLoadBalancer MemberAccess = "LoadBalancer"
 )
 
+// Returns true if ClusterDataRecoveryPolicy is not FullRecoveryOnly
 func (p *HazelcastPersistenceConfiguration) AutoRemoveStaleData() bool {
 	return p.ClusterDataRecoveryPolicy != FullRecovery
 }
@@ -322,6 +330,9 @@ type HazelcastMemberStatus struct {
 	// Reason contains the optional reason of member crash or restart.
 	// +optional
 	Reason string `json:"reason,omitempty"`
+
+	// RestartCount is the number of times the member has been restarted.
+	RestartCount int32 `json:"restartCount"`
 }
 
 // HazelcastClusterStatus defines the status of the Hazelcast cluster
