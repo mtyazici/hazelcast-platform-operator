@@ -35,7 +35,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.1.0
         if: always()
         with:
-          args: --timeout 2m
+          args: --timeout 2m --build-tags hazelcastinternal
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
