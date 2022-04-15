@@ -25,6 +25,7 @@ type HazelcastClient struct {
 	client               *hazelcast.Client
 	cancel               context.CancelFunc
 	NamespacedName       types.NamespacedName
+	Error                error
 	Log                  logr.Logger
 	MemberMap            map[hztypes.UUID]*MemberData
 	triggerReconcileChan chan event.GenericEvent
@@ -119,9 +120,7 @@ func (c *HazelcastClient) start(ctx context.Context, config hazelcast.Config) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	c.Lock()
 	c.cancel = cancel
-	c.Unlock()
 
 	go func(ctx context.Context) {
 		c.initHzClient(ctx, config)
@@ -152,17 +151,20 @@ func (c *HazelcastClient) initHzClient(ctx context.Context, config hazelcast.Con
 	if err != nil {
 		// Ignoring the connection error and just logging as it is expected for Operator that in some scenarios it cannot access the HZ cluster
 		c.Log.Info("Cannot connect to Hazelcast cluster. Some features might not be available.", "Reason", err.Error())
+		c.Error = err
 	} else {
 		c.client = hzClient
 	}
 }
 
 func (c *HazelcastClient) shutdown(ctx context.Context) {
-	c.Lock()
-	defer c.Unlock()
 	if c.cancel != nil {
 		c.cancel()
 	}
+
+	c.Lock()
+	defer c.Unlock()
+
 	if c.client == nil {
 		return
 	}
