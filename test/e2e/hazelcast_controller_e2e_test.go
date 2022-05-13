@@ -18,7 +18,6 @@ import (
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	n "github.com/hazelcast/hazelcast-platform-operator/controllers/naming"
-	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
@@ -75,7 +74,7 @@ var _ = Describe("Hazelcast", func() {
 	Describe("Default Hazelcast CR", func() {
 		It("should create Hazelcast cluster", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 		})
 	})
 
@@ -96,7 +95,7 @@ var _ = Describe("Hazelcast", func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			assertUseHazelcastUnisocket()
 			assertExternalAddressesNotEmpty()
 		})
@@ -106,7 +105,7 @@ var _ = Describe("Hazelcast", func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			assertUseHazelcastSmart()
 			assertExternalAddressesNotEmpty()
 		})
@@ -116,7 +115,7 @@ var _ = Describe("Hazelcast", func() {
 				FillTheMapData(ctx, false, "map", 100)
 			}
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			assertUseHazelcastSmart()
 		})
 	})
@@ -124,7 +123,7 @@ var _ = Describe("Hazelcast", func() {
 	Describe("Hazelcast cluster name", func() {
 		It("should create a Hazelcust cluster with Cluster name: development", Label("fast"), func() {
 			hazelcast := hazelcastconfig.ClusterName(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 		})
 	})
@@ -133,7 +132,7 @@ var _ = Describe("Hazelcast", func() {
 
 		It("should update HZ ready members status", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 			assertMemberLogs(hazelcast, "Members {size:3, ver:3}")
 
@@ -150,7 +149,7 @@ var _ = Describe("Hazelcast", func() {
 
 		It("should update HZ detailed member status", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 
 			hz := &hazelcastcomv1alpha1.Hazelcast{}
@@ -194,7 +193,7 @@ var _ = Describe("Hazelcast", func() {
 				Skip("This test will only run in EE configuration")
 			}
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			assertMemberLogs(hazelcast, "Local Hot Restart procedure completed with success.")
 			assertMemberLogs(hazelcast, "Hot Restart procedure completed")
 
@@ -225,7 +224,7 @@ var _ = Describe("Hazelcast", func() {
 				Skip("This test will only run in EE configuration")
 			}
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart")
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
@@ -261,7 +260,7 @@ var _ = Describe("Hazelcast", func() {
 				Skip("This test will only run in EE configuration")
 			}
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, "/data/hot-restart", false)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
@@ -278,7 +277,7 @@ var _ = Describe("Hazelcast", func() {
 			hazelcast.Spec.ClusterSize = &[]int32{2}[0]
 			hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
 			hazelcast.Spec.Persistence.AutoForceStart = true
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 2)
 		})
 
@@ -288,7 +287,7 @@ var _ = Describe("Hazelcast", func() {
 			}
 			baseDir := "/data/hot-restart"
 			hazelcast := addNodeSelectorForName(hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir, params...), getFirstWorkerNodeName())
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("Creating HotBackup CR")
@@ -345,7 +344,7 @@ var _ = Describe("Hazelcast", func() {
 	Describe("Hazelcast Map Config", func() {
 		It("should create Map Config", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-1", hzNamespace)
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
@@ -355,7 +354,7 @@ var _ = Describe("Hazelcast", func() {
 		It("should create Map Config with correct default values", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -375,7 +374,7 @@ var _ = Describe("Hazelcast", func() {
 				Expect(err).To(BeNil())
 			}()
 			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
-			Expect(mapConfig.InMemoryFormat).Should(Equal(hazelcastcomv1alpha1.EncodeInMemoryFormat[codecTypes.InMemoryFormatBinary]))
+			Expect(mapConfig.InMemoryFormat).Should(Equal(int32(0)))
 			Expect(mapConfig.BackupCount).Should(Equal(n.DefaultMapBackupCount))
 			Expect(mapConfig.AsyncBackupCount).Should(Equal(int32(0)))
 			Expect(mapConfig.TimeToLiveSeconds).Should(Equal(*m.Spec.TimeToLiveSeconds))
@@ -389,9 +388,10 @@ var _ = Describe("Hazelcast", func() {
 		})
 		It("should create Map Config with Indexes", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
-			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-2", hzNamespace)
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map", hzNamespace)
+			m.Spec.BackupCount = pointer.Int32Ptr(3)
 			m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
 				{
 					Name:               "index-1",
@@ -402,7 +402,7 @@ var _ = Describe("Hazelcast", func() {
 				{
 					Name:       "index-2",
 					Type:       hazelcastcomv1alpha1.IndexTypeBitmap,
-					Attributes: []string{"attribute1", "attribute2"},
+					Attributes: []string{"attribute3", "attribute4"},
 					BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
 						UniqueKey:           "key",
 						UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
@@ -412,12 +412,39 @@ var _ = Describe("Hazelcast", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
 
-			// TODO: When Indexes can be decoded in the getMapConfig method, we can check if indexes are created correctly.
+			localPort := "8000"
+			By("port-forwarding to Hazelcast master pod")
+			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			err := waitForReadyChannel(readyChan, 5*time.Second)
+			Expect(err).To(BeNil())
+
+			cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+			defer func() {
+				err := cl.Shutdown(context.Background())
+				Expect(err).To(BeNil())
+			}()
+
+			By("checking if the map config is created correctly")
+			mapConfig := getMapConfig(context.Background(), cl, m.MapName())
+			Expect(mapConfig.Indexes[0].Name).Should(Equal("index-1"))
+			Expect(mapConfig.Indexes[0].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeHash]))
+			Expect(mapConfig.Indexes[0].Attributes).Should(Equal([]string{"attribute1", "attribute2"}))
+			// TODO: Hazelcast side returns these bitmapIndexOptions even though we give them empty.
+			Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKey).Should(Equal("__key"))
+			Expect(mapConfig.Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(int32(0)))
+
+			Expect(mapConfig.Indexes[1].Name).Should(Equal("index-2"))
+			Expect(mapConfig.Indexes[1].Type).Should(Equal(hazelcastcomv1alpha1.EncodeIndexType[hazelcastcomv1alpha1.IndexTypeBitmap]))
+			Expect(mapConfig.Indexes[1].Attributes).Should(Equal([]string{"attribute3", "attribute4"}))
+			Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKey).Should(Equal("key"))
+			Expect(mapConfig.Indexes[1].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(hazelcastcomv1alpha1.EncodeUniqueKeyTransition[hazelcastcomv1alpha1.UniqueKeyTransitionRAW]))
+
 		})
 
 		It("should fail when persistence of Map CR and Hazelcast CR do not match", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-3", hzNamespace)
 			m.Spec.PersistenceEnabled = true
@@ -430,7 +457,7 @@ var _ = Describe("Hazelcast", func() {
 		It("should update the map correctly", Label("fast"), func() {
 			localPort := "8000"
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
 			By("port-forwarding to Hazelcast master pod")
 			stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -447,9 +474,9 @@ var _ = Describe("Hazelcast", func() {
 			m.Spec.TimeToLiveSeconds = pointer.Int32Ptr(150)
 			m.Spec.MaxIdleSeconds = pointer.Int32Ptr(100)
 			m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{
-				EvictionPolicy: codecTypes.EvictionPolicyLFU,
+				EvictionPolicy: hazelcastcomv1alpha1.EvictionPolicyLFU,
 				MaxSize:        pointer.Int32Ptr(500),
-				MaxSizePolicy:  codecTypes.MaxSizePolicyFreeHeapSize,
+				MaxSizePolicy:  hazelcastcomv1alpha1.MaxSizePolicyFreeHeapSize,
 			}
 			Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
 			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
@@ -471,7 +498,7 @@ var _ = Describe("Hazelcast", func() {
 
 		It("should fail to update", Label("fast"), func() {
 			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config successfully")
 			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-123", hzNamespace)
@@ -493,7 +520,7 @@ var _ = Describe("Hazelcast", func() {
 			baseDir := "/data/hot-restart"
 
 			hazelcast := hazelcastconfig.PersistenceEnabled(hzNamespace, baseDir)
-			CreateHazelcastCR(hazelcast, lookupKey)
+			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(lookupKey, 3)
 
 			By("port-forwarding to Hazelcast master pod")
@@ -540,23 +567,7 @@ var _ = Describe("Hazelcast", func() {
 
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(lookupKey, 3)
-
-			logs := InitLogs(t)
-			defer logs.Close()
-
-			scanner := bufio.NewScanner(logs)
-			test.EventuallyInLogs(scanner, timeout, logInterval).
-				Should(ContainSubstring("Starting hot-restart service. Base directory: " + baseDir))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
-				Should(ContainSubstring("Starting the Hot Restart procedure."))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
-				Should(ContainSubstring("Local Hot Restart procedure completed with success."))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
-				Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
-			test.EventuallyInLogs(scanner, timeout, logInterval).
-				Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
-
-			Expect(logs.Close()).Should(Succeed())
+			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 			By("port-forwarding to restarted Hazelcast master pod")
 			stopChan, readyChan = portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
@@ -573,6 +584,104 @@ var _ = Describe("Hazelcast", func() {
 			mp, err = cl.GetMap(context.Background(), mapName)
 			Expect(err).To(BeNil())
 			Expect(mp.Size(context.Background())).Should(Equal(entryCount))
+		})
+
+		It("should persist the map successfully created configs into the configmap", Label("fast"), func() {
+			if !ee {
+				Skip("This test will only run in EE configuration")
+			}
+			maps := []string{"map1", "map2", "map3", "mapfail"}
+
+			hazelcast := hazelcastconfig.Default(hzNamespace, true)
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(lookupKey, 3)
+
+			By("creating the map configs successfully")
+			for i, mapp := range maps {
+				m := hazelcastconfig.DefaultMap(hazelcast.Name, mapp, hzNamespace)
+				m.Spec.Eviction = &hazelcastcomv1alpha1.EvictionConfig{MaxSize: pointer.Int32Ptr(int32(i) * 100)}
+				m.Spec.HazelcastResourceName = hazelcast.Name
+				if mapp == "mapfail" {
+					m.Spec.HazelcastResourceName = "failedHz"
+				}
+				Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+				if mapp == "mapfail" {
+					assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+					continue
+				}
+				assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			}
+
+			By("checking if the maps are in the map config")
+			hzConfig := assertMapConfigsPersisted(hazelcast, "map1", "map2", "map3")
+			for i, mapp := range maps {
+				if mapp != "mapfail" {
+					Expect(hzConfig.Hazelcast.Map[mapp].Eviction.Size).Should(Equal(int32(i) * 100))
+				}
+			}
+
+			By("deleting map2")
+			Expect(k8sClient.Delete(context.Background(),
+				&hazelcastcomv1alpha1.Map{ObjectMeta: v1.ObjectMeta{Name: "map2", Namespace: hazelcast.Namespace}})).Should(Succeed())
+
+			By("checking if map2 is not persisted in the configmap")
+			_ = assertMapConfigsPersisted(hazelcast, "map1", "map3")
+		})
+
+		It("should persist Map Config with Indexes", Label("fast"), func() {
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
+			CreateHazelcastCR(hazelcast)
+
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-2", hzNamespace)
+			m.Spec.Indexes = []hazelcastcomv1alpha1.IndexConfig{
+				{
+					Name:       "index-1",
+					Type:       hazelcastcomv1alpha1.IndexTypeHash,
+					Attributes: []string{"attribute1", "attribute2"},
+					BitmapIndexOptions: &hazelcastcomv1alpha1.BitmapIndexOptionsConfig{
+						UniqueKey:           "key",
+						UniqueKeyTransition: hazelcastcomv1alpha1.UniqueKeyTransitionRAW,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+			By("checking if the map is in the configmap")
+			hzConfig := assertMapConfigsPersisted(hazelcast, "map-2")
+
+			By("checking if the indexes are persisted")
+			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].Name).Should(Equal("index-1"))
+			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].Type).Should(Equal(string(hazelcastcomv1alpha1.IndexTypeHash)))
+			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].Attributes).Should(ConsistOf("attribute1", "attribute2"))
+			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].BitmapIndexOptions.UniqueKey).Should(Equal("key"))
+			Expect(hzConfig.Hazelcast.Map["map-2"].Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(string(hazelcastcomv1alpha1.UniqueKeyTransitionRAW)))
+		})
+
+		It("should continue persisting last applied Map Config in case of failure", Label("fast"), func() {
+			hazelcast := hazelcastconfig.Default(hzNamespace, ee)
+			CreateHazelcastCR(hazelcast)
+
+			m := hazelcastconfig.DefaultMap(hazelcast.Name, "map-2", hzNamespace)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			m = assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+
+			By("checking if the map config is persisted")
+			hzConfig := assertMapConfigsPersisted(hazelcast, "map-2")
+			mcfg := hzConfig.Hazelcast.Map["map-2"]
+
+			By("failing to update the map config")
+			m.Spec.BackupCount = pointer.Int32Ptr(4)
+			Expect(k8sClient.Update(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapFailed)
+
+			By("checking if the same map config is still there")
+			// Should wait for Hazelcast reconciler to get triggered, we do not have a waiting mechanism for that.
+			time.Sleep(5 * time.Second)
+			hzConfig = assertMapConfigsPersisted(hazelcast, "map-2")
+			newMcfg := hzConfig.Hazelcast.Map["map-2"]
+			Expect(newMcfg).To(Equal(mcfg))
+
 		})
 	})
 })

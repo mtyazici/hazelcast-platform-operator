@@ -6,28 +6,29 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
 
+	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	hzClient "github.com/hazelcast/hazelcast-go-client"
+	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/transport/spdy"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/config"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/platform"
 	"github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/codec"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/controllers/protocol/types"
@@ -66,11 +67,12 @@ func InitLogs(t time.Time) io.ReadCloser {
 	return logs
 }
 
-func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, lookupKey types.NamespacedName) {
+func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 	By("Creating Hazelcast CR", func() {
 		Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 	})
 
+	lookupKey := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
 	By("Checking Hazelcast CR running", func() {
 		hz := &hazelcastcomv1alpha1.Hazelcast{}
 		Eventually(func() bool {
@@ -317,4 +319,50 @@ func createHazelcastClient(ctx context.Context, h *hazelcastcomv1alpha1.Hazelcas
 	Expect(err).To(BeNil())
 	return client
 
+}
+
+func assertHazelcastRestoreStatus(h *hazelcastcomv1alpha1.Hazelcast, st hazelcastcomv1alpha1.RestoreState) *hazelcastcomv1alpha1.Hazelcast {
+	checkHz := &hazelcastcomv1alpha1.Hazelcast{}
+	By("Waiting for Map CR status", func() {
+		Eventually(func() hazelcastcomv1alpha1.RestoreState {
+			err := k8sClient.Get(context.Background(), types.NamespacedName{
+				Name:      h.Name,
+				Namespace: h.Namespace,
+			}, checkHz)
+			if err != nil {
+				return ""
+			}
+			return checkHz.Status.Restore.State
+		}, timeout, interval).Should(Equal(st))
+	})
+	return checkHz
+}
+
+func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps ...string) *config.HazelcastWrapper {
+	cm := &corev1.ConfigMap{}
+	returnConfig := &config.HazelcastWrapper{}
+	Eventually(func() []string {
+		hzConfig := &config.HazelcastWrapper{}
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      hazelcast.Name,
+			Namespace: hazelcast.Namespace,
+		}, cm)
+		if err != nil {
+			return nil
+		}
+		err = yaml.Unmarshal([]byte(cm.Data["hazelcast.yaml"]), hzConfig)
+		if err != nil {
+			return nil
+		}
+		keys := make([]string, 0, len(hzConfig.Hazelcast.Map))
+		for k := range hzConfig.Hazelcast.Map {
+			keys = append(keys, k)
+		}
+
+		returnConfig = hzConfig
+		return keys
+
+	}, timeout, interval).Should(ConsistOf(maps))
+
+	return returnConfig
 }
