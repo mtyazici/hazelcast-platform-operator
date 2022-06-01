@@ -263,11 +263,15 @@ func clientConnectionMessage(req ctrl.Request) string {
 		return fmt.Sprintf("Operator failed to connect to the cluster. Some features might be unavailable. %s", c.Error.Error())
 	}
 
-	if c.client != nil && c.client.Running() {
-		return ""
+	if !c.IsClientConnected() {
+		return "Operator could not connect to the cluster. Some features might be unavailable."
 	}
 
-	return "Operator is in progress of connecting to the cluster. Some features might be unavailable."
+	if !c.AreAllMembersAccessible() {
+		return "Operator could not connect to all cluster members. Some features might be unavailable."
+	}
+
+	return ""
 }
 
 func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
