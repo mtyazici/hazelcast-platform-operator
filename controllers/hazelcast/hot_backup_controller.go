@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast/validation"
 	"strconv"
 	"sync"
 	"time"
@@ -135,6 +136,9 @@ func (r *HotBackupReconciler) Reconcile(ctx context.Context, req reconcile.Reque
 	}
 
 	if hb.Spec.BucketURL != "" {
+		if err := validation.ValidateHotBackupSpec(hb); err != nil {
+			return ctrl.Result{}, err
+		}
 		agentAddresses, err := r.getAgentAddresses(ctx, hb)
 		if err != nil {
 			return updateHotBackupStatus(ctx, r.Client, hb, failedHbStatus(fmt.Errorf("could not fetch Backup agent addresses properly: %w", err)))
