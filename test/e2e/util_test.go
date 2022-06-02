@@ -30,7 +30,7 @@ func runningLocally() bool {
 	return strings.ToLower(os.Getenv("RUN_MANAGER_LOCALLY")) == "true"
 }
 
-func controllerManagerName() string {
+func GetControllerManagerName() string {
 	np := os.Getenv("NAME_PREFIX")
 	if np == "" {
 		return "hazelcast-platform-controller-manager"
@@ -64,19 +64,6 @@ func assertExists(name types.NamespacedName, obj client.Object) {
 		err := k8sClient.Get(context.Background(), name, obj)
 		return err == nil
 	}, 20*Second, interval).Should(BeTrue())
-}
-
-func deleteIfExists(name types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.Background(), name, obj)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-		return k8sClient.Delete(context.Background(), obj)
-	}, 5*Second, interval).Should(Succeed())
 }
 
 func cleanUpHostPath(namespace, hostPath, hzDir string) {
@@ -210,4 +197,37 @@ func assertRunningOrFailedMount(p v1.Pod, hostPath string) bool {
 		return false
 	}, 1*Minute, interval).Should(BeTrue())
 	return running
+}
+
+func deletePVCs(lk types.NamespacedName) {
+	pvcL := &corev1.PersistentVolumeClaimList{}
+	Eventually(func() bool {
+		err := k8sClient.List(context.Background(), pvcL, client.InNamespace(lk.Namespace))
+		if err != nil {
+			return false
+		}
+		for _, pvc := range pvcL.Items {
+			if strings.Contains(pvc.Name, lk.Name) {
+				err = k8sClient.Delete(context.Background(), &pvc)
+				if err != nil {
+					return false
+				}
+			}
+		}
+		return true
+	}, timeout, interval).Should(BeTrue())
+
+}
+
+func deletePods(lk types.NamespacedName) {
+	// Because pods get recreated by the StatefulSet controller, we are not using the eventually block here
+	podL := &corev1.PodList{}
+	err := k8sClient.List(context.Background(), podL, client.InNamespace(lk.Namespace))
+	Expect(err).To(BeNil())
+	for _, pod := range podL.Items {
+		if strings.Contains(pod.Name, lk.Name) {
+			err = k8sClient.Delete(context.Background(), &pod)
+			Expect(err).To(BeNil())
+		}
+	}
 }
