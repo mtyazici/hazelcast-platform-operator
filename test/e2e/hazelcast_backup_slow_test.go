@@ -172,8 +172,8 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(cl.Size(ctx)).Should(BeEquivalentTo(100))
 	})
 
-	It("should restore 2 GB data after planned shutdown", Label("slow"), func() {
-		var mapSizeInGb = "2"
+	It("should restore 10 GB data after planned shutdown", Label("slow"), func() {
+		var mapSizeInGb = "10"
 		ctx := context.Background()
 		baseDir := "/data/hot-restart"
 		if !ee {
@@ -191,6 +191,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(mapSizeInGb + "Gi")}[0]
 		CreateHazelcastCR(hazelcast)
 
 		By("creating the map config successfully")
@@ -208,6 +209,15 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		seq := GetBackupSequence(t, hzLookupKey)
 
+		By("Check the HotBackup creation sequence")
+		hb := &hazelcastcomv1alpha1.HotBackup{}
+		Eventually(func() hazelcastcomv1alpha1.HotBackupState {
+			err := k8sClient.Get(
+				context.Background(), types.NamespacedName{Name: hotBackup.Name, Namespace: hzNamespace}, hb)
+			Expect(err).ToNot(HaveOccurred())
+			return hb.Status.State
+		}, 10*Minute, interval).Should(Equal(hazelcastcomv1alpha1.HotBackupSuccess))
+
 		By("removing Hazelcast CR")
 		RemoveHazelcastCR(hazelcast)
 
@@ -223,6 +233,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(mapSizeInGb + "Gi")},
 		}
+		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(mapSizeInGb + "Gi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey, 3)
@@ -237,6 +248,7 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("Completed hot restart with final cluster state: ACTIVE"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(MatchRegexp("Hot Restart procedure completed in \\d+ seconds"))
 		Expect(logs.Close()).Should(Succeed())
+		assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 
 		By("checking the Map size")
 		var m *hzClient.Map
@@ -250,6 +262,6 @@ var _ = Describe("Hazelcast Backup", Label("backup_slow"), func() {
 		// 1310.72 entries per one Go routine.  Formula: 1073741824 Bytes per 1Gb  / 8192 Bytes per entry / 100 go routines
 		Eventually(func() (int, error) {
 			return m.Size(ctx)
-		}, 5*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
+		}, 20*Minute, interval).Should(Equal(int(math.Round(mapSize*1310.72) * 100)))
 	})
 })
