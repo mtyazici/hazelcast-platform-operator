@@ -80,11 +80,31 @@ type HazelcastSpec struct {
 
 	// B&R Agent configurations
 	// +optional
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.1"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.2"}
 	Agent *AgentConfiguration `json:"agent,omitempty"`
+
+	// Custom Classes to Download into Class Path
+	// +optional
+	CustomClass *CustomClassConfiguration `json:"customClass,omitempty"`
 }
 
-// TODO: We need to figure out how to pass default AgentConfiguration
+type BucketConfiguration struct {
+	// Name of the secret with credentials for cloud providers.
+	// +kubebuilder:validation:MinLength:=1
+	Secret string `json:"secret"`
+
+	// Full path to blob storage bucket.
+	// +kubebuilder:validation:MinLength:=6
+	BucketURI string `json:"bucketURI"`
+}
+
+// CustomClassConfiguration contains the configuration for Custom Class download operation
+type CustomClassConfiguration struct {
+	BucketConfiguration `json:",inline"`
+	// A string for triggering a rolling restart for re-downloading the custom classes.
+	// +optional
+	TriggerSequence string `json:"triggerSequence,omitempty"`
+}
 
 type AgentConfiguration struct {
 	// Repository to pull Hazelcast Platform Operator Agent(https://github.com/hazelcast/platform-operator-agent)
@@ -93,19 +113,13 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.1"
+	// +kubebuilder:default:="0.1.2"
 	// +optional
 	Version string `json:"version,omitempty"`
 }
 
 // RestoreConfiguration contains the configuration for Restore operation
-type RestoreConfiguration struct {
-	// Name of the secret with credentials for cloud providers.
-	Secret string `json:"secret,omitempty"`
-
-	// Full path to blob storage bucket.
-	BucketURI string `json:"bucketURI,omitempty"`
-}
+type RestoreConfiguration BucketConfiguration
 
 // BackupType represents the storage options for the HotBackup
 // +kubebuilder:validation:Enum=External;Local
@@ -263,6 +277,11 @@ const (
 // Returns true if exposeExternally configuration is specified.
 func (c *ExposeExternallyConfiguration) IsEnabled() bool {
 	return c != nil && !(*c == (ExposeExternallyConfiguration{}))
+}
+
+// Returns true if customClass configuration is specified.
+func (c *CustomClassConfiguration) IsEnabled() bool {
+	return c != nil && !(*c == (CustomClassConfiguration{}))
 }
 
 // Returns true if Smart configuration is specified and therefore each Hazelcast member needs to be exposed with a separate address.
