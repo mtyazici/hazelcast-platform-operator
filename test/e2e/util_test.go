@@ -38,6 +38,13 @@ func GetControllerManagerName() string {
 	return np + "controller-manager"
 }
 
+func GetSuiteName() string {
+	if !ee {
+		return "Operator Suite OS"
+	}
+	return "Operator Suite EE"
+}
+
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
 	err := k8sClient.Get(ctx, name, deploy)
 	if err != nil {
