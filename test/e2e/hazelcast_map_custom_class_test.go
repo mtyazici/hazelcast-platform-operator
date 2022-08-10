@@ -38,11 +38,16 @@ var _ = Describe("Hazelcast Map Config With Custom Class Upload", Label("map"), 
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		DeleteAllOf(&corev1.Secret{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should use the MapStore implementation correctly", Label("fast"), func() {

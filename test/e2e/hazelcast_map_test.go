@@ -46,10 +46,15 @@ var _ = Describe("Hazelcast Map Config", Label("map"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
 		deletePVCs(hzLookupKey)
 		assertDoesNotExist(hzLookupKey, &hazelcastcomv1alpha1.Hazelcast{})
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should create Map Config", Label("fast"), func() {

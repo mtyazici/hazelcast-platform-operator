@@ -43,9 +43,14 @@ var _ = Describe("Hazelcast WAN", Label("hz_wan"), func() {
 	})
 
 	AfterEach(func() {
+		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
+		if skipCleanup() {
+			return
+		}
 		DeleteAllOf(&hazelcastcomv1alpha1.WanReplication{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Map{}, hzNamespace, labels)
 		DeleteAllOf(&hazelcastcomv1alpha1.Hazelcast{}, hzNamespace, labels)
+		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
 	It("should send data to another cluster", Label("slow"), func() {

@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
 	. "github.com/onsi/ginkgo/v2"
+	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -458,4 +460,26 @@ func assertMapConfigsPersisted(hazelcast *hazelcastcomv1alpha1.Hazelcast, maps .
 		return keys
 	}, 20*Second, interval).Should(ConsistOf(maps))
 	return returnConfig
+}
+
+func skipCleanup() bool {
+	if CurrentSpecReport().State == ginkgoTypes.SpecStateSkipped {
+		return true
+	}
+	if CurrentSpecReport().State != ginkgoTypes.SpecStatePassed {
+		printDebugState()
+	}
+	return false
+}
+
+func printDebugState() {
+	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
+
+	GinkgoWriter.Println("kubectl get all:")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter", "-o=wide")
+	byt, err := cmd.Output()
+	Expect(err).To(BeNil())
+	GinkgoWriter.Println(string(byt))
+
+	GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
 }
