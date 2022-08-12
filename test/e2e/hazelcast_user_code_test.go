@@ -19,7 +19,7 @@ import (
 	hazelcastconfig "github.com/hazelcast/hazelcast-platform-operator/test/e2e/config/hazelcast"
 )
 
-var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"), func() {
+var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func() {
 	localPort := strconv.Itoa(8200 + GinkgoParallelProcess())
 
 	BeforeEach(func() {
@@ -61,6 +61,7 @@ var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"),
 
 		By("port-forwarding to Hazelcast master pod")
 		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
 		err := waitForReadyChannel(readyChan, 5*Second)
 		Expect(err).To(BeNil())
 
@@ -85,6 +86,9 @@ var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"),
 		By("Filling the map with entries")
 		entryCount := 5
 		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		defer func() {
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
+		}()
 		mp, err := cl.GetMap(context.Background(), m.GetName())
 		Expect(err).To(BeNil())
 
@@ -95,11 +99,6 @@ var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"),
 		err = mp.PutAll(context.Background(), entries...)
 		Expect(err).To(BeNil())
 		Expect(mp.Size(context.Background())).Should(Equal(entryCount))
-
-		By("Shutting down the connection to cluster")
-		err = cl.Shutdown(context.Background())
-		Expect(err).To(BeNil())
-		closeChannel(stopChan)
 
 		By("Checking the logs")
 		logs := InitLogs(t, hzLookupKey)
@@ -114,6 +113,72 @@ var _ = Describe("Hazelcast Map Config With User Code Deployment", Label("map"),
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring("SimpleStore - loading all keys"))
 		test.EventuallyInLogs(scanner, 10*Second, logInterval).Should(ContainSubstring(fmt.Sprintf("SimpleStore - storing key: %d", entryCount-1)))
 
+	})
+
+	It("should add executor services both initially and dynamically", Label("fast"), func() {
+		setLabelAndCRName("hcc-1")
+
+		executorServices := []hazelcastcomv1alpha1.ExecutorServiceConfiguration{
+			{
+				Name:     "service1",
+				PoolSize: 5,
+			},
+		}
+		durableExecutorServices := []hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{
+			{
+				Name:       "service1",
+				Durability: 20,
+			},
+		}
+		scheduledExecutorServices := []hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{
+			{
+				Name:           "service2",
+				CapacityPolicy: "PER_PARTITION",
+			},
+		}
+		sampleExecutorServices := map[string]interface{}{"es": executorServices, "des": durableExecutorServices, "ses": scheduledExecutorServices}
+
+		By("creating the Hazelcast CR")
+		hazelcast := hazelcastconfig.ExecutorService(hzLookupKey, ee, sampleExecutorServices, labels)
+		CreateHazelcastCR(hazelcast)
+
+		By("port-forwarding to Hazelcast master pod")
+		stopChan, readyChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+		defer closeChannel(stopChan)
+		err := waitForReadyChannel(readyChan, 5*Second)
+		Expect(err).To(BeNil())
+
+		By("checking if the initially added executor service configs are created correctly")
+		cl := createHazelcastClient(context.Background(), hazelcast, localPort)
+		defer func() {
+			Expect(cl.Shutdown(context.Background())).Should(Succeed())
+		}()
+
+		memberConfigXML := getMemberConfig(context.Background(), cl)
+		actualES := getExecutorServiceConfigFromMemberConfig(memberConfigXML)
+		assertExecutorServices(sampleExecutorServices, actualES)
+
+		By("adding new executor services dynamically")
+		sampleExecutorServices["es"] = append(sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration), hazelcastcomv1alpha1.ExecutorServiceConfiguration{Name: "new-service", QueueCapacity: 50})
+		sampleExecutorServices["des"] = append(sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration), hazelcastcomv1alpha1.DurableExecutorServiceConfiguration{Name: "new-durable-service", PoolSize: 12, Capacity: 40})
+		sampleExecutorServices["ses"] = append(sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration), hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration{Name: "new-scheduled-service", PoolSize: 12, Capacity: 40})
+
+		UpdateHazelcastCR(hazelcast, func(hz *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+			hz.Spec.ExecutorServices = sampleExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration)
+			hz.Spec.DurableExecutorServices = sampleExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration)
+			hz.Spec.ScheduledExecutorServices = sampleExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration)
+			return hz
+		})
+
+		By("checking if all the executor service configs are created correctly", func() {
+			Eventually(func() int {
+				memberConfigXML = getMemberConfig(context.Background(), cl)
+				actualES = getExecutorServiceConfigFromMemberConfig(memberConfigXML)
+				return len(actualES.Durable)
+			}, 90*Second, interval).Should(Equal(2))
+		})
+
+		assertExecutorServices(sampleExecutorServices, actualES)
 	})
 
 })

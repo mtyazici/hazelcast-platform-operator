@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"math"
 	"net/http"
@@ -41,6 +43,8 @@ import (
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/test"
 )
+
+type UpdateFn func(*hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast
 
 func GetBackupSequence(t Time, lk types.NamespacedName) string {
 	By("Finding Backup sequence")
@@ -92,6 +96,30 @@ func CreateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
 			return isHazelcastRunning(hz)
 		}, 10*Minute, interval).Should(BeTrue(), "Message: %v", message)
 	})
+}
+
+func UpdateHazelcastCR(hazelcast *hazelcastcomv1alpha1.Hazelcast, fns ...UpdateFn) {
+	By("updating the CR with specs successfully")
+	if len(fns) == 0 {
+		Expect(k8sClient.Update(context.Background(), hazelcast)).Should(Succeed())
+	} else {
+		lk := types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}
+		for {
+			cr := &hazelcastcomv1alpha1.Hazelcast{}
+			Expect(k8sClient.Get(context.Background(), lk, cr)).Should(Succeed())
+			for _, fn := range fns {
+				cr = fn(cr)
+			}
+			err := k8sClient.Update(context.Background(), cr)
+			if err == nil {
+				break
+			} else if errors.IsConflict(err) {
+				continue
+			} else {
+				Fail(err.Error())
+			}
+		}
+	}
 }
 
 func CreateHazelcastCRWithoutCheck(hazelcast *hazelcastcomv1alpha1.Hazelcast) {
@@ -363,6 +391,14 @@ func assertMapStatus(m *hazelcastcomv1alpha1.Map, st hazelcastcomv1alpha1.MapCon
 	return checkMap
 }
 
+func getMemberConfig(ctx context.Context, client *hzClient.Client) string {
+	ci := hzClient.NewClientInternal(client)
+	req := codec.EncodeMCGetMemberConfigRequest()
+	resp, err := ci.InvokeOnRandomTarget(ctx, req, nil)
+	Expect(err).To(BeNil())
+	return codec.DecodeMCGetMemberConfigResponse(resp)
+}
+
 func getMapConfig(ctx context.Context, client *hzClient.Client, mapName string) codecTypes.MapConfig {
 	ci := hzClient.NewClientInternal(client)
 	req := codec.EncodeMCGetMapConfigRequest(mapName)
@@ -482,4 +518,45 @@ func printDebugState() {
 	GinkgoWriter.Println(string(byt))
 
 	GinkgoWriter.Printf("Current Ginkgo Spec Report State is: %+v\n", CurrentSpecReport().State)
+}
+
+func getExecutorServiceConfigFromMemberConfig(memberConfigXML string) codecTypes.ExecutorServices {
+	var executorServices codecTypes.ExecutorServices
+	err := xml.Unmarshal([]byte(memberConfigXML), &executorServices)
+	Expect(err).To(BeNil())
+	return executorServices
+}
+
+func assertExecutorServices(expectedES map[string]interface{}, actualES codecTypes.ExecutorServices) {
+	for i, bes1 := range expectedES["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration) {
+		// `i+1`'s reason is the default executor service added by hazelcast in any case.
+		assertES(bes1, actualES.Basic[i+1])
+	}
+	for i, des1 := range expectedES["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration) {
+		assertDurableES(des1, actualES.Durable[i])
+	}
+	for i, ses1 := range expectedES["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration) {
+		assertScheduledES(ses1, actualES.Scheduled[i])
+	}
+}
+
+func assertES(expectedES hazelcastcomv1alpha1.ExecutorServiceConfiguration, actualES codecTypes.ExecutorServiceConfig) {
+	Expect(expectedES.Name).Should(Equal(actualES.Name))
+	Expect(expectedES.PoolSize).Should(Equal(actualES.PoolSize))
+	Expect(expectedES.QueueCapacity).Should(Equal(actualES.QueueCapacity))
+}
+
+func assertDurableES(expectedDES hazelcastcomv1alpha1.DurableExecutorServiceConfiguration, actualDES codecTypes.DurableExecutorServiceConfig) {
+	Expect(expectedDES.Name).Should(Equal(actualDES.Name))
+	Expect(expectedDES.PoolSize).Should(Equal(actualDES.PoolSize))
+	Expect(expectedDES.Capacity).Should(Equal(actualDES.Capacity))
+	Expect(expectedDES.Durability).Should(Equal(actualDES.Durability))
+}
+
+func assertScheduledES(expectedSES hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration, actualSES codecTypes.ScheduledExecutorServiceConfig) {
+	Expect(expectedSES.Name).Should(Equal(actualSES.Name))
+	Expect(expectedSES.PoolSize).Should(Equal(actualSES.PoolSize))
+	Expect(expectedSES.Capacity).Should(Equal(actualSES.Capacity))
+	Expect(expectedSES.Durability).Should(Equal(actualSES.Durability))
+	Expect(expectedSES.CapacityPolicy).Should(Equal(actualSES.CapacityPolicy))
 }

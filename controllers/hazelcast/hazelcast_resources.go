@@ -434,10 +434,12 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 	ml := filterPersistedMaps(mapList.Items)
 
 	cfg := hazelcastConfigMapStruct(h)
+
 	err = fillHazelcastConfigWithMaps(ctx, c, &cfg, h, ml)
 	if err != nil {
 		return nil, err
 	}
+
 	fillHazelcastConfigWithExecutorServices(&cfg, h)
 
 	yml, err := yaml.Marshal(config.HazelcastWrapper{Hazelcast: cfg})
@@ -1131,6 +1133,7 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Value: strconv.FormatBool(util.IsPhoneHomeEnabled()),
 		},
 		{
+
 			Name:  "LOGGING_PATTERN",
 			Value: `{"time":"%date{ISO8601}", "logger": "%logger{36}", "level": "%level", "msg": "%enc{%m %xEx}{JSON}"}%n`,
 		},
@@ -1331,20 +1334,20 @@ func (r *HazelcastReconciler) addExecutorServices(ctx context.Context, client *h
 	}
 }
 
-func fillAddExecutorServiceInput(esInput *codecTypes.AddExecutorInput, es hazelcastv1alpha1.ExecutorServiceConfiguration) {
+func fillAddExecutorServiceInput(esInput *codecTypes.ExecutorServiceConfig, es hazelcastv1alpha1.ExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.QueueCapacity = es.QueueCapacity
 }
 
-func fillAddDurableExecutorServiceInput(esInput *codecTypes.AddDurableExecutorInput, es hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
+func fillAddDurableExecutorServiceInput(esInput *codecTypes.DurableExecutorServiceConfig, es hazelcastv1alpha1.DurableExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.Capacity = es.Capacity
 	esInput.Durability = es.Durability
 }
 
-func fillAddScheduledExecutorServiceInput(esInput *codecTypes.AddScheduledExecutorInput, es hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
+func fillAddScheduledExecutorServiceInput(esInput *codecTypes.ScheduledExecutorServiceConfig, es hazelcastv1alpha1.ScheduledExecutorServiceConfiguration) {
 	esInput.Name = es.Name
 	esInput.PoolSize = es.PoolSize
 	esInput.Capacity = es.Capacity
