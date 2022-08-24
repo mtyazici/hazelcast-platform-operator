@@ -197,11 +197,15 @@ type BucketConfiguration struct {
 
 // UserCodeDeploymentConfig contains the configuration for User Code download operation
 type UserCodeDeploymentConfig struct {
+	// When true, allows user code deployment from clients.
+	// +optional
+	ClientEnabled bool `json:"clientEnabled,omitempty"`
+
 	// Jar files in the bucket will be put under CLASSPATH.
 	// +optional
 	BucketConfiguration *BucketConfiguration `json:"bucketConfig,omitempty"`
 
-	// A string for triggering a rolling restart for re-downloading the user codes.
+	// A string for triggering a rolling restart for re-downloading the user code.
 	// +optional
 	TriggerSequence string `json:"triggerSequence,omitempty"`
 

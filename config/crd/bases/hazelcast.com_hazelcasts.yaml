@@ -1110,6 +1110,9 @@ spec:
                     - bucketURI
                     - secret
                     type: object
+                  clientEnabled:
+                    description: When true, allows user code deployment from clients.
+                    type: boolean
                   configMaps:
                     description: Files in the ConfigMaps will be put under CLASSPATH.
                     items:
@@ -1117,7 +1120,7 @@ spec:
                     type: array
                   triggerSequence:
                     description: A string for triggering a rolling restart for re-downloading
-                      the user codes.
+                      the user code.
                     type: string
                 type: object
               version:

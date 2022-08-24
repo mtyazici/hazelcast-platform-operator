@@ -591,6 +591,12 @@ func hazelcastConfigMapStruct(h *hazelcastv1alpha1.Hazelcast) config.Hazelcast {
 		},
 	}
 
+	if h.Spec.UserCodeDeployment != nil {
+		cfg.UserCodeDeployment = config.UserCodeDeployment{
+			Enabled: h.Spec.UserCodeDeployment.ClientEnabled,
+		}
+	}
+
 	if h.Spec.ExposeExternally.UsesNodeName() {
 		cfg.Network.Join.Kubernetes.UseNodeNameAsExternalAddress = &[]bool{true}[0]
 	}
