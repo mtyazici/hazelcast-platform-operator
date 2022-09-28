@@ -379,9 +379,12 @@ var (
 				Labels:    lbls,
 			},
 			Spec: hazelcastv1alpha1.WanReplicationSpec{
-				MapResourceName:   mapName,
 				TargetClusterName: targetClusterName,
 				Endpoints:         endpoints,
+				Resources: []hazelcastv1alpha1.ResourceSpec{{
+					Name: mapName,
+					Kind: hazelcastv1alpha1.ResourceKindMap,
+				}},
 			},
 		}
 	}
