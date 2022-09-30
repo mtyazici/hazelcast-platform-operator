@@ -33,7 +33,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.2.0
         if: ${{ !cancelled() }}
         with:
-          args: --timeout 2m --build-tags hazelcastinternal
+          args: --timeout 3m --build-tags hazelcastinternal
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -131,7 +131,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --network=${{ env.GCP_NETWORK }} \
             --machine-type=n1-standard-2 \
-            --num-nodes=2
+            --num-nodes=3
           sleep 30
 
   get-image:
