@@ -86,6 +86,7 @@ type PhoneHomeData struct {
 	BackupAndRestore              BackupAndRestore   `json:"br"`
 	UserCodeDeployment            UserCodeDeployment `json:"ucd"`
 	ExecutorServiceCount          int                `json:"esc"`
+	MultiMapCount                 int                `json:"mmc"`
 	CronHotBackupCount            int                `json:"chbc"`
 }
 
@@ -137,6 +138,7 @@ func newPhoneHomeData(cl client.Client, m *Metrics) PhoneHomeData {
 	phd.fillMapMetrics(cl)
 	phd.fillWanReplicationData(cl)
 	phd.fillHotBackupMetrics(cl)
+	phd.fillMultiMapData(cl)
 	phd.fillCronHotBackupMetrics(cl)
 
 	return phd
@@ -309,6 +311,15 @@ func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
 			phm.BackupAndRestore.AzureBlobStorage += 1
 		}
 	}
+}
+
+func (phm *PhoneHomeData) fillMultiMapData(cl client.Client) {
+	mml := &hazelcastv1alpha1.MultiMapList{}
+	err := cl.List(context.Background(), mml, client.InNamespace(os.Getenv(n.NamespaceEnv)))
+	if err != nil || mml.Items == nil {
+		return
+	}
+	phm.MultiMapCount = len(mml.Items)
 }
 
 func (phm *PhoneHomeData) fillCronHotBackupMetrics(cl client.Client) {

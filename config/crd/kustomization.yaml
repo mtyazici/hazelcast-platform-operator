@@ -7,6 +7,7 @@ resources:
 - bases/hazelcast.com_hotbackups.yaml
 - bases/hazelcast.com_maps.yaml
 - bases/hazelcast.com_wanreplications.yaml
+- bases/hazelcast.com_multimaps.yaml
 - bases/hazelcast.com_cronhotbackups.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
@@ -17,6 +18,7 @@ resources:
 #- patches/webhook_in_managementcenters.yaml
 #- patches/webhook_in_maps.yaml
 #- patches/webhook_in_wanreplications.yaml
+#- patches/webhook_in_multimaps.yaml
 #- patches/webhook_in_cronhotbackups.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
@@ -26,6 +28,7 @@ resources:
 #- patches/cainjection_in_managementcenters.yaml
 #- patches/cainjection_in_maps.yaml
 #- patches/cainjection_in_wanreplications.yaml
+#- patches/cainjection_in_multimaps.yaml
 #- patches/cainjection_in_cronhotbackups.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 

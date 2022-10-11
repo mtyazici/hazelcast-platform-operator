@@ -4,5 +4,6 @@ resources:
 - _v1alpha1_managementcenter.yaml
 - _v1alpha1_map.yaml
 - _v1alpha1_wanreplication.yaml
+- _v1alpha1_multimap.yaml
 - _v1alpha1_cronhotbackup.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

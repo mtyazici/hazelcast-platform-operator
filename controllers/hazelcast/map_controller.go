@@ -132,9 +132,11 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMessage(err.Error()))
 	}
 
-	requeue, err := updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
-	if err != nil {
-		return requeue, err
+	if m.Status.State != hazelcastv1alpha1.MapPersisting {
+		requeue, err := updateMapStatus(ctx, r.Client, m, pendingStatus(0).withMessage("Applying new map configuration."))
+		if err != nil {
+			return requeue, err
+		}
 	}
 
 	ms, err := r.ReconcileMapConfig(ctx, m, h, cl, createdBefore)
@@ -145,7 +147,7 @@ func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			withMemberStatuses(ms))
 	}
 
-	requeue, err = updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Persisting the applied map config."))
+	requeue, err := updateMapStatus(ctx, r.Client, m, persistingStatus(1*time.Second).withMessage("Persisting the applied map config."))
 	if err != nil {
 		return requeue, err
 	}
@@ -410,14 +412,17 @@ func (r *MapReconciler) validateMapConfigPersistence(ctx context.Context, h *haz
 		return false, fmt.Errorf("persisted ConfigMap is not formatted correctly")
 	}
 
-	if mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]; !ok {
-		currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
-		if err != nil {
-			return false, err
-		}
-		if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
-			return false, nil
-		}
+	mcfg, ok := hzConfig.Hazelcast.Map[m.MapName()]
+	if !ok {
+		return false, nil
+	}
+
+	currentMcfg, err := createMapConfig(ctx, r.Client, h, m)
+	if err != nil {
+		return false, err
+	}
+	if !reflect.DeepEqual(mcfg, currentMcfg) { // TODO replace DeepEqual with custom implementation
+		return false, nil
 	}
 	return true, nil
 }

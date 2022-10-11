@@ -102,6 +102,17 @@ const (
 	DefaultMapMaxSize            = int32(0)
 )
 
+// MultiMap Config default values
+const (
+	DefaultMultiMapBackupCount       = int32(1)
+	DefaultMultiMapAsyncBackupCount  = int32(0)
+	DefaultMultiMapBinary            = false
+	DefaultMultiMapCollectionType    = "SET"
+	DefaultMultiMapStatisticsEnabled = true
+	DefaultMultiMapMergePolicy       = "com.hazelcast.spi.merge.PutIfAbsentMergePolicy"
+	DefaultMultiMapMergeBatchSize    = int32(100)
+)
+
 // CronHotBackup Config default values
 const (
 	DefaultSuccessfulHotBackupsHistoryLimit = int32(5)
