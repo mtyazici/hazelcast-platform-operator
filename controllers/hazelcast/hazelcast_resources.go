@@ -801,11 +801,22 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 			WriteCoalescing:   ms.MapStore.WriteCoealescing,
 			WriteDelaySeconds: ms.MapStore.WriteDelaySeconds,
 			WriteBatchSize:    ms.MapStore.WriteBatchSize,
-			ClassName:         string(ms.MapStore.ClassName),
+			ClassName:         ms.MapStore.ClassName,
 			Properties:        msp,
 			InitialLoadMode:   string(ms.MapStore.InitialMode),
 		}
 
+	}
+
+	if len(ms.EntryListeners) != 0 {
+		mc.EntryListeners = make([]config.EntryListener, 0, len(ms.EntryListeners))
+		for _, el := range ms.EntryListeners {
+			mc.EntryListeners = append(mc.EntryListeners, config.EntryListener{
+				ClassName:    el.ClassName,
+				IncludeValue: el.GetIncludedValue(),
+				Local:        el.Local,
+			})
+		}
 	}
 	return mc, nil
 }

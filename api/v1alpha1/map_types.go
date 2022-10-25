@@ -64,6 +64,37 @@ type MapSpec struct {
 	// +kubebuilder:default:=BINARY
 	// +optional
 	InMemoryFormat InMemoryFormatType `json:"inMemoryFormat,omitempty"`
+
+	// EntryListeners contains the configuration for the map-level or entry-based events listeners
+	// provided by the Hazelcast’s eventing framework.
+	// You can learn more at https://docs.hazelcast.com/imdg/latest/events/object-events.
+	// +optional
+	EntryListeners []EntryListenerConfiguration `json:"entryListeners,omitempty"`
+}
+
+type EntryListenerConfiguration struct {
+	// ClassName is the fully qualified name of the class that implements any of the Listener interface.
+	// +kubebuilder:validation:MinLength:=1
+	ClassName string `json:"className"`
+
+	// IncludeValues is an optional attribute that indicates whether the event will contain the map value.
+	// Defaults to true.
+	// +kubebuilder:default:=true
+	// +optional
+	IncludeValues *bool `json:"includeValues,omitempty"`
+
+	// Local is an optional attribute that indicates whether the map on the local member can be listened to.
+	// Defaults to false.
+	// +kubebuilder:default:=false
+	// +optional
+	Local bool `json:"local,omitempty"`
+}
+
+func (e *EntryListenerConfiguration) GetIncludedValue() bool {
+	if e.IncludeValues == nil {
+		return true
+	}
+	return *e.IncludeValues
 }
 
 type EvictionConfig struct {
