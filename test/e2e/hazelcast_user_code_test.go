@@ -182,7 +182,6 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 
 		h := hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels)
 		CreateHazelcastCR(h)
-		t := Now()
 
 		By("creating map with Map with entry listener")
 		ms := hazelcastcomv1alpha1.MapSpec{
@@ -196,6 +195,7 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		m := hazelcastconfig.Map(ms, mapLookupKey, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+		t := Now()
 
 		By("port-forwarding to Hazelcast master pod")
 		stopChan := portForwardPod(hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/entryListener", labels).Name+"-0", hazelcastconfig.UserCode(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/mapStore", labels).Namespace, localPort+":5701")
@@ -222,10 +222,11 @@ var _ = Describe("Hazelcast User Code Deployment", Label("custom_class"), func()
 		logs := InitLogs(t, hzLookupKey)
 		defer logs.Close()
 		scanner := bufio.NewScanner(logs)
+		var logEl []interface{}
 		for _, e := range entries {
-			test.EventuallyInLogs(scanner, 10*Second, logInterval).
-				Should(ContainSubstring(fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value)))
+			logEl = append(logEl, fmt.Sprintf("EntryAdded, key: %s, value:%s", e.Key, e.Value))
 		}
+		test.EventuallyInLogsUnordered(scanner, 10*Second, logInterval).
+			Should(ContainElements(logEl...))
 	})
-
 })

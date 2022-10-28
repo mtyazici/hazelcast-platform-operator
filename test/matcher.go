@@ -68,3 +68,13 @@ func EventuallyInLogs(logs *bufio.Scanner, intervals ...interface{}) AsyncAssert
 		return ""
 	}, intervals...)
 }
+
+func EventuallyInLogsUnordered(logs *bufio.Scanner, intervals ...interface{}) AsyncAssertion {
+	l := make([]string, 0)
+	return Eventually(func() []string {
+		if logs.Scan() {
+			l = append(l, logs.Text())
+		}
+		return l
+	}, intervals...)
+}
