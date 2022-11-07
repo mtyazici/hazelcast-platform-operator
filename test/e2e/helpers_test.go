@@ -243,35 +243,43 @@ func SwitchContext(context string) {
 		}
 	})
 }
-func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, mapSize int) {
-	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, mapSize, lk.Name, lk.Namespace), func() {
+func FillTheMapData(ctx context.Context, lk types.NamespacedName, unisocket bool, mapName string, entryCount int) {
+	By(fmt.Sprintf("filling the '%s' map with '%d' entries using '%s' lookup name and '%s' namespace", mapName, entryCount, lk.Name, lk.Namespace), func() {
 		var m *hzClient.Map
 		clientHz := GetHzClient(ctx, lk, unisocket)
 		m, err := clientHz.GetMap(ctx, mapName)
 		Expect(err).ToNot(HaveOccurred())
-		entries := make([]hzclienttypes.Entry, 0, mapSize)
-		for i := 0; i < mapSize; i++ {
+		initMapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		entries := make([]hzclienttypes.Entry, 0, entryCount)
+		for i := initMapSize; i < initMapSize+entryCount; i++ {
 			entries = append(entries, hzclienttypes.NewEntry(strconv.Itoa(i), strconv.Itoa(i)))
 		}
 		err = m.PutAll(ctx, entries...)
 		Expect(err).ToNot(HaveOccurred())
+		mapSize, err := m.Size(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapSize).To(Equal(initMapSize + entryCount))
 		err = clientHz.Shutdown(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	})
 }
 
-func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int) {
+func WaitForMapSize(ctx context.Context, lk types.NamespacedName, mapName string, mapSize int, timeout Duration) {
 	By(fmt.Sprintf("waiting the '%s' map to be of size '%d' using lookup name '%s'", mapName, mapSize, lk.Name), func() {
-		var hzMap *hzClient.Map
+		if timeout == 0 {
+			timeout = 10 * Minute
+		}
 		clientHz := GetHzClient(ctx, lk, true)
 		defer func() {
 			err := clientHz.Shutdown(ctx)
 			Expect(err).To(BeNil())
 		}()
-		hzMap, _ = clientHz.GetMap(ctx, mapName)
+		hzMap, err := clientHz.GetMap(ctx, mapName)
+		Expect(err).To(BeNil())
 		Eventually(func() (int, error) {
 			return hzMap.Size(ctx)
-		}, 30*Minute, 10*Second).Should(Equal(mapSize))
+		}, timeout, 10*Second).Should(Equal(mapSize))
 	})
 }
 
@@ -355,7 +363,9 @@ func assertMemberLogs(h *hazelcastcomv1alpha1.Hazelcast, expected string) {
 	logs := test.GetPodLogs(context.Background(), types.NamespacedName{
 		Name:      h.Name + "-0",
 		Namespace: h.Namespace,
-	}, &corev1.PodLogOptions{})
+	}, &corev1.PodLogOptions{
+		Container: "hazelcast",
+	})
 	defer logs.Close()
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
