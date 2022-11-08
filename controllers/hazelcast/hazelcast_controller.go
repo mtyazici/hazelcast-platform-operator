@@ -80,7 +80,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Add finalizer for Hazelcast CR to cleanup ClusterRole
-	err = r.addFinalizer(ctx, h, logger)
+	err = util.AddFinalizer(ctx, r.Client, h, logger)
 	if err != nil {
 		return update(ctx, r.Client, h, failedPhase(err))
 	}
@@ -187,7 +187,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
 
-	if err = r.ensureClusterActive(ctx, h, logger); err != nil {
+	if err = r.ensureClusterActive(ctx, h); err != nil {
 		logger.Error(err, "Cluster activation attempt after hot restore failed")
 		return update(ctx, r.Client, h, pendingPhase(retryAfter))
 	}
@@ -337,6 +337,12 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.ReplicatedMap{}, "hazelcastResourceName", func(rawObj client.Object) []string {
 		m := rawObj.(*hazelcastv1alpha1.ReplicatedMap)
+		return []string{m.Spec.HazelcastResourceName}
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.Queue{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		m := rawObj.(*hazelcastv1alpha1.Queue)
 		return []string{m.Spec.HazelcastResourceName}
 	}); err != nil {
 		return err

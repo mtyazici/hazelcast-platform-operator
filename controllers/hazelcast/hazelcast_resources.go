@@ -43,18 +43,6 @@ const (
 	hzLicenseKey = "HZ_LICENSEKEY"
 )
 
-func (r *HazelcastReconciler) addFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !controllerutil.ContainsFinalizer(h, n.Finalizer) && h.GetDeletionTimestamp() == nil {
-		controllerutil.AddFinalizer(h, n.Finalizer)
-		err := r.Update(ctx, h)
-		if err != nil {
-			return err
-		}
-		logger.V(util.DebugLevel).Info("Finalizer added into custom resource successfully")
-	}
-	return nil
-}
-
 func (r *HazelcastReconciler) executeFinalizer(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !controllerutil.ContainsFinalizer(h, n.Finalizer) {
 		return nil
@@ -84,6 +72,7 @@ func (r *HazelcastReconciler) deleteDependentCRs(ctx context.Context, h *hazelca
 		"MultiMap":      &hazelcastv1alpha1.MultiMapList{},
 		"Topic":         &hazelcastv1alpha1.TopicList{},
 		"ReplicatedMap": &hazelcastv1alpha1.ReplicatedMapList{},
+		"Queue":         &hazelcastv1alpha1.QueueList{},
 	}
 	for crKind, crList := range dependentCRs {
 		if err := r.deleteDependentCR(ctx, h, crKind, crList, logger); err != nil {
@@ -538,6 +527,7 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 		&hazelcastv1alpha1.MultiMapList{},
 		&hazelcastv1alpha1.TopicList{},
 		&hazelcastv1alpha1.ReplicatedMapList{},
+		&hazelcastv1alpha1.QueueList{},
 	}
 	for _, ds := range dataStructures {
 		filteredDSList, err := filterPersistedDS(ctx, c, h.Name, ds)
@@ -554,6 +544,8 @@ func hazelcastConfigMapData(ctx context.Context, c client.Client, h *hazelcastv1
 			fillHazelcastConfigWithTopics(&cfg, filteredDSList)
 		case "ReplicatedMap":
 			fillHazelcastConfigWithReplicatedMaps(&cfg, filteredDSList)
+		case "Queue":
+			fillHazelcastConfigWithQueues(&cfg, filteredDSList)
 		}
 	}
 
@@ -730,6 +722,17 @@ func fillHazelcastConfigWithTopics(cfg *config.Hazelcast, tl []client.Object) {
 	}
 }
 
+func fillHazelcastConfigWithQueues(cfg *config.Hazelcast, ql []client.Object) {
+	if len(ql) != 0 {
+		cfg.Queue = map[string]config.Queue{}
+		for _, q := range ql {
+			q := q.(*hazelcastv1alpha1.Queue)
+			qcfg := createQueueConfig(q)
+			cfg.Queue[q.GetDSName()] = qcfg
+		}
+	}
+}
+
 func fillHazelcastConfigWithReplicatedMaps(cfg *config.Hazelcast, rml []client.Object) {
 	if len(rml) != 0 {
 		cfg.ReplicatedMap = map[string]config.ReplicatedMap{}
@@ -887,6 +890,22 @@ func createMultiMapConfig(mm *hazelcastv1alpha1.MultiMap) config.MultiMap {
 		MergePolicy: config.MergePolicy{
 			ClassName: n.DefaultMultiMapMergePolicy,
 			BatchSize: n.DefaultMultiMapMergeBatchSize,
+		},
+	}
+}
+
+func createQueueConfig(q *hazelcastv1alpha1.Queue) config.Queue {
+	qs := q.Spec
+	return config.Queue{
+		BackupCount:             *qs.BackupCount,
+		AsyncBackupCount:        *qs.AsyncBackupCount,
+		EmptyQueueTtl:           *qs.EmptyQueueTtlSeconds,
+		MaxSize:                 *qs.MaxSize,
+		StatisticsEnabled:       n.DefaultQueueStatisticsEnabled,
+		PriorityComparatorClass: qs.PriorityComparatorClassName,
+		MergePolicy: config.MergePolicy{
+			ClassName: n.DefaultQueueMergePolicy,
+			BatchSize: n.DefaultQueueMergeBatchSize,
 		},
 	}
 }
@@ -1270,7 +1289,7 @@ func ucdAgentContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func ucdAgentVolumeMount(h *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
+func ucdAgentVolumeMount(_ *hazelcastv1alpha1.Hazelcast) v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
 		MountPath: n.UserCodeBucketPath,
@@ -1302,7 +1321,7 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	return vols
 }
 
-func userCodeAgentVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func userCodeAgentVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
 		Name: n.UserCodeBucketVolumeName,
 		VolumeSource: v1.VolumeSource{
@@ -1323,7 +1342,7 @@ func hostPathVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	}
 }
 
-func tlsVolume(h *hazelcastv1alpha1.Hazelcast) v1.Volume {
+func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
 	return v1.Volume{
 		Name: n.MTLSCertSecretName,
 		VolumeSource: v1.VolumeSource{
@@ -1415,7 +1434,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	return nil
 }
 
-func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, h *hazelcastv1alpha1.Hazelcast) error {
 	// make sure restore is active
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return nil
