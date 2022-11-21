@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
 
@@ -22,7 +22,7 @@ type optionsBuilder struct {
 	retryAfter        time.Duration
 	err               error
 	readyMembers      map[hztypes.UUID]*hzclient.MemberData
-	restoreState      hzclient.ClusterHotRestartStatus
+	restoreState      codecTypes.ClusterHotRestartStatus
 	message           string
 	externalAddresses string
 }
@@ -45,6 +45,13 @@ func runningPhase() optionsBuilder {
 	return optionsBuilder{
 		phase: hazelcastv1alpha1.Running,
 	}
+}
+
+func (r *HazelcastReconciler) runningPhaseWithStatus(req ctrl.Request) optionsBuilder {
+	if ss, ok := r.statusServiceRegistry.Get(req.NamespacedName); ok {
+		return runningPhase().withStatus(ss.GetStatus())
+	}
+	return runningPhase()
 }
 
 func terminatingPhase(err error) optionsBuilder {
@@ -128,12 +135,11 @@ func updateFailedMember(h *hazelcastv1alpha1.Hazelcast, err *util.PodError) {
 }
 
 // update takes the options provided by the given optionsBuilder, applies them all and then updates the Hazelcast resource
-func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
+func (r *HazelcastReconciler) update(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, options optionsBuilder) (ctrl.Result, error) {
 	h.Status.Phase = options.phase
 	h.Status.Cluster.ReadyMembers = "N/A"
 
-	cl, ok := hzclient.GetClient(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
-
+	cl, ok := r.clientRegistry.Get(types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
 	if ok && cl.IsClientConnected() {
 		h.Status.Cluster.ReadyMembers = fmt.Sprintf("%d/%d", len(options.readyMembers), *h.Spec.ClusterSize)
 	}
@@ -155,7 +161,7 @@ func update(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast
 			RemainingValidationTime: options.restoreState.RemainingValidationTimeSec(),
 		}
 	}
-	if err := c.Status().Update(ctx, h); err != nil {
+	if err := r.Client.Status().Update(ctx, h); err != nil {
 		// Conflicts are expected and will be handled on the next reconcile loop, no need to error out here
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, nil
