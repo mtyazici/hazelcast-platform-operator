@@ -602,7 +602,7 @@ func printDebugState() {
 	GinkgoWriter.Printf("Started aftereach function for hzLookupkey : '%s'\n", hzLookupKey)
 
 	GinkgoWriter.Println("kubectl get all:")
-	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc", "-o=wide")
+	cmd := exec.Command("kubectl", "get", "all,hazelcast,map,hotbackup,wanreplication,managementcenter,node,pvc,topic,queue,cache,multimap,replicatedmap", "-o=wide")
 	byt, err := cmd.Output()
 	Expect(err).To(BeNil())
 	GinkgoWriter.Println(string(byt))
@@ -745,4 +745,16 @@ func DnsLookup(ctx context.Context, host string) (string, error) {
 		return "", fmt.Errorf("host '%s' cannot be resolved", host)
 	}
 	return IPs[0], nil
+}
+
+func getCacheConfigFromMemberConfig(memberConfigXML string, cacheName string) *codecTypes.CacheConfigInput {
+	var caches codecTypes.CacheConfigs
+	err := xml.Unmarshal([]byte(memberConfigXML), &caches)
+	Expect(err).To(BeNil())
+	for _, c := range caches.Caches {
+		if c.Name == cacheName {
+			return &c
+		}
+	}
+	return nil
 }

@@ -6,24 +6,24 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: queues.hazelcast.com
+  name: caches.hazelcast.com
 spec:
   group: hazelcast.com
   names:
-    kind: Queue
-    listKind: QueueList
-    plural: queues
+    kind: Cache
+    listKind: CacheList
+    plural: caches
     shortNames:
-    - q
-    singular: queue
+    - ch
+    singular: cache
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Current state of the Queue Config
+    - description: Current state of the Cache Config
       jsonPath: .status.state
       name: Status
       type: string
-    - description: Message for the current Queue Config
+    - description: Message for the current Cache Config
       jsonPath: .status.message
       name: Message
       priority: 1
@@ -31,7 +31,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Queue is the Schema for the queues API
+        description: Cache is the Schema for the caches API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,8 +46,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: QueueSpec defines the desired state of Queue It cannot be
-              updated after the Queue is created
+            description: CacheSpec defines the desired state of Cache It cannot be
+              updated after the Cache is created
             properties:
               asyncBackupCount:
                 default: 0
@@ -59,38 +59,27 @@ spec:
                 description: Number of synchronous backups.
                 format: int32
                 type: integer
-              emptyQueueTTLSeconds:
-                default: -1
-                description: Time in seconds after which the Queue will be destroyed
-                  if it stays empty or unused. If the values is not provided the Queue
-                  will never be destroyed.
-                format: int32
-                type: integer
               hazelcastResourceName:
                 description: HazelcastResourceName defines the name of the Hazelcast
                   resource.
                 minLength: 1
                 type: string
-              maxSize:
-                default: 0
-                description: Max size of the queue.
-                format: int32
-                type: integer
+              keyType:
+                description: Class name of the key type
+                type: string
               name:
                 description: Name of the data structure config to be created. If empty,
                   CR name will be used. It cannot be updated after the config is created
                   successfully.
                 type: string
-              priorityComparatorClassName:
-                description: The name of the comparator class. If the class name is
-                  provided, the Queue becomes Priority Queue. You can learn more at
-                  https://docs.hazelcast.com/hazelcast/latest/data-structures/priority-queue.
+              valueType:
+                description: Class name of the value type
                 type: string
             required:
             - hazelcastResourceName
             type: object
           status:
-            description: QueueStatus defines the observed state of Queue
+            description: CacheStatus defines the observed state of Cache
             properties:
               memberStatuses:
                 additionalProperties:
