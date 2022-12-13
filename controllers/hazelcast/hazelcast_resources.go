@@ -827,7 +827,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		InMemoryFormat:    string(ms.InMemoryFormat),
 		Indexes:           copyMapIndexes(ms.Indexes),
 		StatisticsEnabled: true,
-		HotRestart: config.MapHotRestart{
+		DataPersistence: config.DataPersistence{
 			Enabled: ms.PersistenceEnabled,
 			Fsync:   false,
 		},
@@ -969,6 +969,10 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			ClassName: n.DefaultCacheMergePolicy,
 			BatchSize: n.DefaultCacheMergeBatchSize,
 		},
+		DataPersistence: config.DataPersistence{
+			Enabled: cs.PersistenceEnabled,
+			Fsync:   false,
+		},
 	}
 	if cs.KeyType != "" {
 		cache.KeyType = config.ClassType{
@@ -980,6 +984,7 @@ func createCacheConfig(c *hazelcastv1alpha1.Cache) config.Cache {
 			ClassName: cs.ValueType,
 		}
 	}
+
 	return cache
 }
 
@@ -1530,7 +1535,7 @@ func (r *HazelcastReconciler) checkHotRestart(ctx context.Context, h *hazelcastv
 	if !h.Spec.Persistence.IsEnabled() || !h.Spec.Persistence.AutoForceStart {
 		return nil
 	}
-	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster HotRestart.")
+	logger.Info("Persistence and AutoForceStart are enabled. Checking for the cluster DataPersistence.")
 	for _, member := range h.Status.Members {
 		if !member.Ready && member.Reason == "CrashLoopBackOff" {
 			logger.Info("Member is crashing with CrashLoopBackOff.",
