@@ -37,7 +37,7 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 	structureSpec := hazelcastv1alpha1.DataStructureSpec{
 		HazelcastResourceName: meta.Name,
 		BackupCount:           pointer.Int32(1),
-		AsyncBackupCount:      pointer.Int32(0),
+		AsyncBackupCount:      0,
 	}
 	structureStatus := hazelcastv1alpha1.DataStructureStatus{State: hazelcastv1alpha1.DataStructureSuccess}
 
@@ -110,7 +110,7 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 					Name:      "cr",
 					Namespace: "default",
 				},
-				Spec:   hazelcastv1alpha1.ReplicatedMapSpec{HazelcastResourceName: meta.Name},
+				Spec:   hazelcastv1alpha1.ReplicatedMapSpec{HazelcastResourceName: meta.Name, AsyncFillup: pointer.Bool(true)},
 				Status: hazelcastv1alpha1.ReplicatedMapStatus{DataStructureStatus: structureStatus},
 			},
 		},
@@ -129,7 +129,7 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 				},
 				Spec: hazelcastv1alpha1.QueueSpec{
 					EmptyQueueTtlSeconds: pointer.Int32(10),
-					MaxSize:              pointer.Int32(0),
+					MaxSize:              0,
 					DataStructureSpec:    structureSpec,
 				},
 				Status: hazelcastv1alpha1.QueueStatus{DataStructureStatus: structureStatus},
@@ -150,9 +150,9 @@ func Test_hazelcastConfigMapMultipleCRs(t *testing.T) {
 				},
 				Spec: hazelcastv1alpha1.MapSpec{
 					DataStructureSpec: structureSpec,
-					TimeToLiveSeconds: pointer.Int32(10),
-					Eviction: &hazelcastv1alpha1.EvictionConfig{
-						MaxSize: pointer.Int32(10),
+					TimeToLiveSeconds: 10,
+					Eviction: hazelcastv1alpha1.EvictionConfig{
+						MaxSize: 0,
 					},
 				},
 				Status: hazelcastv1alpha1.MapStatus{State: hazelcastv1alpha1.MapSuccess},
