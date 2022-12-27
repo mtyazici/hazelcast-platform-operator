@@ -357,6 +357,17 @@ func (r *HazelcastReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &hazelcastv1alpha1.WanReplication{}, "hazelcastResourceName", func(rawObj client.Object) []string {
+		wr := rawObj.(*hazelcastv1alpha1.WanReplication)
+		hzResources := []string{}
+		for k := range wr.Status.WanReplicationMapsStatus {
+			hzName, _ := splitWanMapKey(k)
+			hzResources = append(hzResources, hzName)
+		}
+		return hzResources
+	}); err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hazelcastv1alpha1.Hazelcast{}).
 		Owns(&appsv1.StatefulSet{}).
