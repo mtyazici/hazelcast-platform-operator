@@ -1,11 +1,9 @@
-name: Nightly E2E tests on OCP
+name: E2E tests on OCP
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * *"
+  workflow_call:
 
 env:
-  NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
   AWS_REGION: us-east-1
   RESTART_OCP_NODE_TIMEOUT: 15
   OCP_CLUSTER_URL: ${{ secrets.OCP_CLUSTER_URL }}
@@ -87,9 +85,8 @@ jobs:
       run:
         shell: bash
     env:
-      IMG: hazelcast/hazelcast-platform-operator:latest-snapshot
       HZ_LICENSE_KEY: ${{ secrets.HZ_LICENSE_KEY }}
-      NAMESPACE: oc-e2e-test-operator-nightly-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: oc-e2e-test-operator-${{ matrix.edition }}-${{ github.run_id }}
       NAME_PREFIX: hp-${{ matrix.edition }}-${{ github.run_id }}-
     steps:
       - name: Checkout to hazelcast-operator
@@ -110,9 +107,8 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build Image
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          IMG=ttl.sh/$(uuidgen):1h
+          IMG=ttl.sh/$(uuidgen):2h
           echo "IMG=${IMG}" >> $GITHUB_ENV
 
           make docker-build-ci IMG=$IMG VERSION=${{github.sha}}
@@ -170,7 +166,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: test-report-ocp
           path: allure-results/ocp/
 
   cleanup-unused-images-and-new-relic:
