@@ -206,7 +206,7 @@ jobs:
 
       - name: Run Wan Test
         run: |-
-          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow WORKFLOW_ID=wan
+          make test-e2e NAMESPACE=src-ns NAME_PREFIX=src-ns- E2E_TEST_SUITE=hz_wan_slow REPORT_SUFFIX=ee-01 WORKFLOW_ID=wan
 
       - name: Upload Test Report
         if: always()
@@ -222,6 +222,7 @@ jobs:
     secrets: inherit
     with:
       WORKFLOW_ID: wan
+      CLUSTER_NAME: src-wan-cluster-${{ github.run_number }}
 
   cleanup-namespaces:
     name: Cleanup Namespaces
