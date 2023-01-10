@@ -1,5 +1,4 @@
 #!/bin/bash
-
 get_image()
 {
     local PUBLISHED=$1
@@ -156,6 +155,39 @@ cleanup_page_publish_runs()
                 return 42
             fi
             sleep 20
+    done
+}
+
+# The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
+wait_for_eks_stack_deleted()
+{
+    local CLUSTER_NAME=$1
+    local TIMEOUT_IN_MINS=$2
+    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
+    LIST_OF_STACKS=$(aws cloudformation describe-stacks --no-paginate --query \
+          'Stacks[?StackName!=`null`]|[?contains(StackName, `'$CLUSTER_NAME'-nodegroup`) == `true` || contains(StackName, `'$CLUSTER_NAME'-addon`) == `true` || contains(StackName, `'$CLUSTER_NAME'-cluster`) == `true`].StackName' | jq -r '.[]')
+    for STACK_NAME in $LIST_OF_STACKS; do
+           aws cloudformation delete-stack \
+           --stack-name $STACK_NAME \
+           --cli-read-timeout 900 \
+           --cli-connect-timeout 900
+        for i in `seq 1 ${NOF_RETRIES}`; do
+            STACK_STATUS=$(aws cloudformation list-stacks \
+            --stack-status-filter DELETE_COMPLETE \
+            --no-paginate \
+            --query 'StackSummaries[?StackName!=`null`]|[?contains(StackName, `'$STACK_NAME'`) == `true`].StackName' | jq -r '.|length')
+            if [[ $STACK_STATUS -eq 1 ]]; then
+                echo "Stack '$STACK_NAME' is deleted"
+                break
+            else
+                echo "Stack '$STACK_NAME' is still being deleting, waiting..."
+            fi
+            if [[ $i == $NOF_RETRIES ]]; then
+                echo "Timeout! Stack deleting could not be finished"
+                return 42
+            fi
+            sleep 20
+        done
     done
 }
 
