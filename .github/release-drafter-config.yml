@@ -15,9 +15,17 @@ include-labels:
   - 'fix'
 exclude-labels:
   - 'non-release'
+  - 'ci'
+  - 'documentation'
 replacers:
-  - search: '/(((\)##[^(#)]+\##)\s+.*)\s+\!?)|(((\)[^(#)]+\##)\s+.*)\s+\!?)/g'
-    replace: ')<br>    -'
+  - search: '/(<!.*)\s+/gm'
+    replace: ''
+  - search: '/^(## User Impact)/gm'
+    replace: '### User Impact'
+  - search: '/(((?<=(#\d\d\d)\)(.*?))[^#]*((?=### User Impact)))|(### User Impact)|((?<=(#\d\d\d)\)(.*?)))##*)|(### User Impact)|((?<=(#\d\d\d)\)(.*?)))##*|(?<=(#\d\d\d)\)(.*?))[^#]*((?:#L).*)|((?<=(#\d\d\d)\)(.*?))[^#]*((?=\n)))/gm'
+    replace: ''
+  - search: '/(?=^[a-zA-Z`])^(?!In this release)/gm'
+    replace: '    - '
   - search: '/\[(.*?)\]/g'
     replace: ''
   - search: '^Add'
@@ -28,7 +36,6 @@ replacers:
     replace: ''
   - search: 'enhancement:'
     replace: ''
-
 autolabeler:
   - label: 'feature'
     branch:
@@ -63,4 +70,3 @@ template: |
   # Release notes
   In this release, we introduced the {REPLACE THIS}. We also introduced {REPLACE THIS}.
   $CHANGES
-
